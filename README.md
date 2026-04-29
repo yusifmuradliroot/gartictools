@@ -2,60 +2,55 @@
 
 > Educational tools for analyzing WebSocket communication in Gartic.io — built for learning, not exploitation.
 
+All scripts are located in the `/scripts` folder.  
+This repository is structured to keep tools organized, secure, and easy to study.
+
 ## 🛠️ Project Purpose
 
-This repository contains experimental scripts designed to study how Gartic.io communicates between client and server using WebSockets.  
-It is intended for **technical analysis, educational use, and personal development**.
+This project is designed to explore how Gartic.io uses WebSockets for real-time gameplay.  
+It's built for **learning, technical analysis, and ethical research** — not cheating.
 
-This project:
-- ❌ Is **not** a cheat or exploit tool
-- ❌ Does **not** aim to create bots or unfair advantages
-- ❌ Must **not** be used to disturb other players
-- ✅ Aims to improve understanding of web protocols and game mechanics
-- ✅ Supports fair play and technical curiosity
-
----
+- ❌ Not a cheat tool
+- ❌ No bot creation or unfair advantage
+- ❌ Must not be used to disturb other players
+- ✅ Encourages understanding of game mechanics
+- ✅ Supports clean, legal experimentation
 
 ## ⚠️ Usage Rules
 
 ### Prohibited:
-- Using these tools to gain an unfair advantage in-game
-- Automating actions that disrupt other players (spam, flooding, kicking, etc.)
-- Hosting or distributing modified versions without permission
-- Using code in private or closed repositories
+- Using scripts to gain in-game advantage
+- Spamming, flooding, or disrupting other players
+- Redistributing, modifying, or hosting code without permission
+- Using in private or closed-source projects
 
 ### Allowed:
-- Studying the source code for learning
-- Running tests in isolated environments
-- Analyzing network behavior for research purposes
+- Studying the code for educational purposes
+- Testing in isolated environments
+- Analyzing network behavior (e.g., WebSocket flow)
 
-> 🎯 Reminder: These tools are for **understanding**, not manipulating, the game.
-
----
+> 🎯 Remember: This is about **understanding**, not breaking.
 
 ## 🤖 AI & Automation Notice
 
-Some scripts in this repository:
-- May involve or support AI-assisted analysis
-- Are capable of logging or processing console output
-- But **must not** be integrated into AI systems that violate fair use
+Some scripts may:
+- Be used with AI-assisted analysis
+- Generate logs suitable for training models
+- Support automation for research
 
-> Any misuse of AI with this code is strictly prohibited.  
-> Responsibility lies solely with the user.
-
----
+But:
+- ❌ Misuse with AI (e.g., mass automation, abuse) is strictly forbidden
+- Responsibility lies with the user
 
 ## 🔐 License & Ownership
 
 All rights reserved by **Yusif Muradli (a.k.a. Yusf)**.  
-Full terms: [`LICENSE`](LICENSE)
+See [`LICENSE`](LICENSE) for full terms.
 
 In short:
-- 🔍 Code inspection and research: **Allowed**
-- 🚫 Copying, reusing, redistributing: **Forbidden without consent**
-- 📢 Even if used legally, removal can be requested at any time
-- 🗑️ Upon request, all derivatives must be taken down immediately
+- 🔍 Code inspection: **Allowed**
+- 🚫 Copying or reuse: **Forbidden without consent**
+- 📢 I can request removal of my code at any time
+- 🗑️ You must comply immediately
 
----
-
-## 📁 Repository Structure
+## 📁 File Structure
