@@ -58,5 +58,4 @@ In short:
 
 ---
 
-## 🧩 Suggested Structure
-# gartictools
+## 📁 Repository Structure
