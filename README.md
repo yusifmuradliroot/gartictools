@@ -55,11 +55,11 @@ In short:
 
 ## 📁 File Structure
 
-/scripts/           → All scripts are stored here 
-/logs/              → Output logs (.txt files) 
-index.html          → Official website (GitHub Pages) 
-README.md           → This file 
-LICENSE             → Legal terms 
+/scripts/           → All scripts are stored here
+/logs/              → Output logs (.txt files)
+index.html          → Official website (GitHub Pages)
+README.md           → This file
+LICENSE             → Legal terms
 
 > 💡 The `/scripts` folder contains all functional tools.  
 > Keep usage respectful and within ethical limits.
