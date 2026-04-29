@@ -3,126 +3,181 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GarticTools by Yusf</title>
+  <meta name="description" content="GarticTools by Yusf – Educational WebSocket analysis for Gartic.io" />
+  <title>Yusf | GarticTools</title>
+
   <style>
     :root {
       --bg: #ffffff;
       --text: #1a1a1a;
-      --accent: #333;
-      --border: #e0e0e0;
+      --accent: #2563eb; /* Mavi tonu: modern ama göz yormaz */
+      --border: #d0d0d0;
+      --card-bg: #f8f9fa;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #111;
-        --text: #f0f0f0;
-        --accent: #555;
-        --border: #333;
+        --bg: #0d1117;
+        --text: #e0e0e0;
+        --accent: #3b82f6;
+        --border: #30363d;
+        --card-bg: #161b22;
       }
     }
-    body {
+
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
-      transition: background 0.3s, color 0.3s;
+      line-height: 1.7;
+      transition: all 0.3s ease;
       padding: 2rem;
       max-width: 900px;
       margin: 0 auto;
     }
+
     header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
+      animation: fadeIn 1s ease-in;
     }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
     .logo {
-      font-size: 3rem;
-      font-weight: bold;
+      font-size: 3.5rem;
+      font-weight: 700;
       color: var(--accent);
-      letter-spacing: -1px;
+      letter-spacing: -1.5px;
+      margin: 0;
     }
+
     .subtitle {
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       opacity: 0.8;
+      font-weight: 400;
       margin-top: 0.5rem;
     }
+
     section {
-      margin-bottom: 2rem;
-      padding: 1.5rem;
-      border-left: 3px solid var(--accent);
-      background: var(--bg);
+      margin-bottom: 2.2rem;
+      padding: 1.6rem;
+      border-radius: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(4px);
     }
+
     h2 {
-      margin-top: 0;
-      color: var(--accent);
+      margin-bottom: 1rem;
       font-size: 1.4rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
     ul {
-      padding-left: 1.2rem;
+      padding-left: 1.5rem;
     }
+
     li {
-      margin: 0.5rem 0;
+      margin: 0.6rem 0;
+      opacity: 0.95;
     }
+
+    strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
     footer {
       text-align: center;
       margin-top: 3rem;
-      padding-top: 1rem;
+      padding-top: 1.2rem;
       border-top: 1px solid var(--border);
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       opacity: 0.7;
     }
+
     @media (max-width: 600px) {
-      .logo { font-size: 2.5rem; }
-      body { padding: 1.5rem; }
+      body {
+        padding: 1.2rem;
+        font-size: 0.95rem;
+      }
+      .logo {
+        font-size: 2.8rem;
+      }
+      section {
+        padding: 1.3rem;
+      }
     }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="logo">Yusf</div>
-    <div class="subtitle">GarticTools — Educational Analysis Suite</div>
+    <h1 class="logo">Yusf</h1>
+    <p class="subtitle">GarticTools — Educational WebSocket Analysis Suite</p>
   </header>
 
   <section>
     <h2>🎯 Purpose</h2>
     <p>
-      This project studies how <strong>Gartic.io</strong> communicates via WebSockets.
-      It's built for learning, not cheating.
+      This project analyzes how <strong>Gartic.io</strong> uses WebSockets for real-time communication.
+      It's built for <strong>learning, research, and technical curiosity</strong>.
     </p>
     <p>
-      Goal: Understand game mechanics to improve quality — ethically and legally.
+      Goal: Understand game behavior to improve quality — ethically and legally.
     </p>
   </section>
 
   <section>
     <h2>⚠️ Rules</h2>
     <ul>
-      <li><strong>Allowed:</strong> Research, analysis, personal testing</li>
-      <li><strong>Forbidden:</strong> Hacks, bots, spam, disturbing players</li>
-      <li><strong>AI Note:</strong> AI-assisted study is possible, but misuse is banned</li>
+      <li>✅ <strong>Allowed:</strong> Code inspection, personal testing, academic study</li>
+      <li>❌ <strong>Forbidden:</strong> Cheating, bots, spam, disturbing other players</li>
+      <li>🤖 <strong>AI Note:</strong> AI-assisted analysis is possible — misuse is banned</li>
     </ul>
   </section>
 
   <section>
     <h2>🔐 Ownership</h2>
     <p>
-      All scripts are owned by <strong>Yusif Muradli (Yusf)</strong>.
+      All scripts are created by <strong>Yusif Muradli (Yusf)</strong> and protected under proprietary license.
     </p>
     <p>
-      You may inspect the code, but redistribution or use without permission is illegal.
+      You may study the code, but redistribution or use without permission is illegal.
       I reserve the right to request removal of my work at any time.
     </p>
   </section>
 
   <footer>
-    &copy; 2026 Yusf • 
-    <a href="https://github.com/yusifmuradliroot/gartictools" style="color:inherit; text-decoration:underline;">View on GitHub</a>
+    &copy; 2026 <strong>Yusf</strong> • 
+    <a href="https://github.com/yusifmuradliroot/gartictools" target="_blank">View on GitHub</a>
   </footer>
 
   <script>
-    // No external tracking. Clean, simple, yours.
-    console.log("Welcome to GarticTools by Yusf");
-    console.log("Code is for learning — respect the rules.");
+    console.log("%cWelcome to GarticTools by Yusf", "color: #2563eb; font-weight: bold;");
+    console.log("Purpose: Learning, not exploitation.");
+    console.log("Respect the rules. Protect the game.");
   </script>
 
 </body>
