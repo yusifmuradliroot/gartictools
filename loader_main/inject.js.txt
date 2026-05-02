@@ -1,16 +1,18 @@
-// v1.0.2
+// v1.0.3
 /*
 LICENSE:
 This software is for personal use only. No redistribution allowed.
 By using this script, you agree to the terms of the repository license.
 Unauthorized commercial use or sharing is prohibited.
 */
+
 (function () {
     'use strict';
 
     if (window.__gt_inj) return;
     window.__gt_inj = true;
 
+    const DEBUG = true; // <--- DEBUG MODUNU AKTİF/PASİF YAPMAK İÇİN TRUE/FALSE YAPIN
     const ADMIN_ID = "12297030";
     let myId = null;
     let ws = null; // Global WS referansı
@@ -21,24 +23,42 @@ Unauthorized commercial use or sharing is prohibited.
 
     // WebSocket Patching (Hook)
     window.WebSocket = function (url, protocols) {
+        if (DEBUG) console.log("[GT-DEBUG] Yeni WebSocket oluşturuluyor. URL:", url);
         const w = new OrigWS(url, protocols);
         ws = w; // Mevcut WS'yi sakla
 
+        // --- DEBUG: Giden Paketleri Logla ---
+        const originalSend = w.send;
+        w.send = function(data) {
+            if (DEBUG && typeof data === 'string' && data.startsWith('42')) {
+                 console.log(`[GT-OUT] -> ${data}`);
+            }
+            return originalSend.apply(this, arguments);
+        };
+
         w.addEventListener("message", function (e) {
+            if (DEBUG && typeof e.data === 'string' && e.data.startsWith('42')) {
+                 console.log(`[GT-IN]  <- ${e.data}`);
+            }
+
             try {
                 if (typeof e.data === "string") {
                     // --- 1. ID ve Kullanıcı Listesi Al (Odaya Giriş) ---
                     if (e.data.startsWith('42["5",')) {
+                        if (DEBUG) console.log("[GT-DEBUG] 42[\"5\",... ] paketi alındı:", e.data);
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d.length > 2) {
                             myId = d[2];
+                            if (DEBUG) console.log("[GT-DEBUG] myId set to:", myId); // Debug log
                             updateStatus("Connected (ID Found)", "#0f0");
-                            console.log("[GT] myId set to:", myId); // Debug log
                         }
                         if (Array.isArray(d) && d.length >= 6 && Array.isArray(d[5])) {
                             users.clear();
                             d[5].forEach(x => {
-                                if (x.id && x.nick) users.set(x.id, x.nick);
+                                if (x.id && x.nick) {
+                                    users.set(x.id, x.nick);
+                                    if (DEBUG) console.log(`[GT-DEBUG] Kullanıcı eklendi: ${x.nick} (${x.id})`);
+                                }
                             });
                             renderUserList();
                         }
@@ -48,6 +68,7 @@ Unauthorized commercial use or sharing is prohibited.
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d[1] && d[1].id && d[1].nick) {
                             users.set(d[1].id, d[1].nick);
+                            if (DEBUG) console.log(`[GT-DEBUG] Yeni kullanıcı katıldı: ${d[1].nick} (${d[1].id})`);
                             renderUserList();
                         }
                     }
@@ -55,7 +76,9 @@ Unauthorized commercial use or sharing is prohibited.
                     else if (e.data.startsWith('42["24",')) {
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d[1] && users.has(d[1])) {
+                            const leftNick = users.get(d[1]);
                             users.delete(d[1]);
+                            if (DEBUG) console.log(`[GT-DEBUG] Kullanıcı ayrıldı: ${leftNick} (${d[1]})`);
                             renderUserList();
                         }
                     }
@@ -69,26 +92,29 @@ Unauthorized commercial use or sharing is prohibited.
                             if (users.has(sid)) s = users.get(sid);
                             else s = `U(${sid})`;
                         }
-                        if (m) addLog(s, m);
+                        if (m) {
+                            if (DEBUG) console.log(`[GT-DEBUG] Sohbet mesajı: [${s}] ${m}`);
+                            addLog(s, m);
+                        }
                     }
                 }
             } catch (err) {
-                // Hata sessizce geçilir
+                if (DEBUG) console.error("[GT-DEBUG] Paket parse hatası:", err, e.data);
             }
         });
 
         w.addEventListener("open", () => {
-            console.log("[GT] WebSocket opened:", url); // Debug log
+            if (DEBUG) console.log("[GT-DEBUG] WebSocket opened:", url); // Debug log
             updateStatus("Connecting...", "#ff0");
         });
         w.addEventListener("close", () => {
-            console.log("[GT] WebSocket closed"); // Debug log
+            if (DEBUG) console.log("[GT-DEBUG] WebSocket closed"); // Debug log
             ws = null;
-            myId = null;
+            myId = null; // Bağlantı kesildiğinde ID'yi sıfırla
             updateStatus("Disconnected", "#f00");
         });
         w.addEventListener("error", (err) => {
-            console.error("[GT] WebSocket error:", err); // Debug log
+            if (DEBUG) console.error("[GT-DEBUG] WebSocket error:", err); // Debug log
             updateStatus("Error", "#f00");
         });
 
@@ -255,6 +281,7 @@ Unauthorized commercial use or sharing is prohibited.
                 return;
             }
             const pkt = `42["11","${myId}","${msg}"]`;
+            if (DEBUG) console.log(`[GT-OUT] Sending custom message: ${pkt}`);
             ws.send(pkt);
             inp.value = "";
             inp.focus();
@@ -272,6 +299,6 @@ Unauthorized commercial use or sharing is prohibited.
     }
 
     // Konsol logu
-    console.log("%c[GarticTools] Injected. Version: v1.0.2", "color: #00ff88; font-weight: bold;");
+    console.log("%c[GarticTools] Injected. Version: v1.0.3. Debug Mode: " + (DEBUG ? "ON" : "OFF"), "color: #00ff88; font-weight: bold;");
 
 })();
