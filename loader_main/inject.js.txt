@@ -21,7 +21,7 @@
         ws.addEventListener('message', function(event) {
             try {
                 if (typeof event.data === 'string') {
-                    // --- ID YAKALAMA ---
+                    // --- ID YAKALAMA (Odaya Giriş Paketi: 42["5",...) ---
                     if (event.data.startsWith('42["5",')) {
                         const jsonStr = event.data.slice(2);
                         const data = JSON.parse(jsonStr);
@@ -33,37 +33,51 @@
                         }
                     } 
                     
-                    // --- CHAT MESAJI YAKALAMA ---
+                    // --- CHAT MESAJI YAKALAMA (Genel Sohbet: 42["11",...) ---
                     else if (event.data.startsWith('42["11",')) {
                         try {
                             const jsonStr = event.data.slice(2);
                             const data = JSON.parse(jsonStr);
                             
-                            // Gartic chat paketi genelde: ["chat", nick, message, color, ...] şeklindedir
-                            // veya ["chat", {nick:..., msg:...}] şeklinde olabilir.
-                            // En yaygın formatı kontrol edelim:
-                            
                             let sender = "Bilinmiyor";
                             let message = "";
                             
+                            // Gartic.io 42["11", ...] paketi yapısı analizi
+                            // Genellikle: ["11", "SenderNick", "MessageContent", ...]
+                            // Veya bazen: ["11", {id:..., nick:...}, "Message"]
+                            
                             if (Array.isArray(data)) {
-                                // Format: ["chat", "Nick", "Mesaj", ...]
-                                if (data.length >= 3) {
+                                // Durum 1: ["11", "Nick", "Mesaj"]
+                                if (data.length >= 3 && typeof data[1] === 'string') {
                                     sender = data[1];
                                     message = data[2];
                                 } 
-                                // Format: ["chat", {obj}]
-                                else if (data.length === 2 && typeof data[1] === 'object') {
-                                    sender = data[1].nick || "Bilinmiyor";
-                                    message = data[1].msg || data[1].message || "";
+                                // Durum 2: ["11", {obj}, "Mesaj"] veya benzeri varyasyonlar
+                                else if (data.length >= 3 && typeof data[1] === 'object' && data[1].nick) {
+                                    sender = data[1].nick;
+                                    message = data[2];
+                                }
+                                // Durum 3: Daha karmaşık yapılar için fallback
+                                else if (data.length >= 2) {
+                                     // Bazen mesaj 2. indexte olabilir, sender 1. indexte obje olabilir
+                                     if (typeof data[1] === 'string') {
+                                         sender = data[1];
+                                         message = data[2] || "";
+                                     } else if (typeof data[1] === 'object' && data[1].nick) {
+                                         sender = data[1].nick;
+                                         message = data[2] || "";
+                                     }
                                 }
                             }
 
-                            if (message) {
+                            if (message && sender !== "Bilinmiyor") {
                                 addChatLog(sender, message);
+                            } else if (message) {
+                                // Sender bulunamadıysa bile mesajı logla (opsiyonel)
+                                addChatLog("Anonim", message);
                             }
                         } catch (e) {
-                            console.warn("[GarticTools] Chat parse hatası:", e);
+                            console.warn("[GarticTools] Chat parse hatası:", e, event.data);
                         }
                     }
                 }
@@ -244,6 +258,7 @@
                 return;
             }
 
+            // Gartic.io genel sohbet gönderim formatı: 42["11","ID","MESAJ"]
             const packet = `42["11","${myWsId}","${msg}"]`;
             activeWs.send(packet);
             input.value = ''; 
@@ -287,11 +302,11 @@
             
             chatLog.forEach(item => {
                 const row = document.createElement('div');
-                row.style.cssText = `margin-bottom: 4px; word-break: break-word;`;
+                row.style.cssText = `margin-bottom: 4px; word-break: break-word; line-height: 1.4;`;
                 
                 const senderSpan = document.createElement('span');
-                senderSpan.style.cssText = `color: #aaa; font-weight: bold; margin-right: 5px;`;
-                senderSpan.textContent = `[${item.sender}]`;
+                senderSpan.style.cssText = `color: #4CAF50; font-weight: bold; margin-right: 5px;`;
+                senderSpan.textContent = `${item.sender}:`;
                 
                 const msgSpan = document.createElement('span');
                 msgSpan.style.cssText = `color: #ddd;`;
