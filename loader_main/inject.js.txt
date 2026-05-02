@@ -1,35 +1,29 @@
 (function() {
     'use strict';
 
-    if (window.__stealthLoggerInjected) return;
-    window.__stealthLoggerInjected = true;
+    if (window.__chatSenderInjected) return;
+    window.__chatSenderInjected = true;
 
     let myWebSocketId = null;
     const originalWebSocket = window.WebSocket;
 
-    // WebSocket sınıfını sarmalıyoruz
+    // WebSocket sınıfını sarmala
     window.WebSocket = class extends originalWebSocket {
         constructor(url) {
             super(url);
 
-            // Websocket bağlantısı kurulduğunda gelen "init" mesajını dinle
+            // "42["5",...]" mesajından mywebsocketid'yi al
             this.addEventListener('message', function(event) {
                 try {
-                    // Sadece string mesajları işle
-                    if (typeof event.data === 'string') {
-                        // Mesajın "42[\"5\",..." ile başlayıp başlamadığını kontrol et
-                        if (event.data.startsWith('42["5",')) {
-                            // JSON.parse ile ayrıştır
-                            const parts = JSON.parse(event.data.replace(/^42/, ''));
-                            // Üçüncü parametre (index 2) mywebsocketid'dir
-                            if (parts && parts.length > 2) {
-                                myWebSocketId = parts[2];
-                                console.log('[StealthLogger] mywebsocketid bulundu:', myWebSocketId);
-                            }
+                    if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
+                        const parts = JSON.parse(event.data.replace(/^42/, ''));
+                        if (parts.length > 2) {
+                            myWebSocketId = parts[2];
+                            console.log('[ChatSender] mywebsocketid alındı:', myWebSocketId);
                         }
                     }
                 } catch (e) {
-                    // Hatalar sessizce göz ardı edilir
+                    // Hata sessizce göz ardı edilir
                 }
             });
 
@@ -41,29 +35,27 @@
         }
     };
 
-    // Konsol komutunu tanımla: garticchat(send("mesaj"))
-    window.garticchat = function(callback) {
-        if (typeof callback !== 'function') {
-            console.error('Kullanım: garticchat(send("mesajınız"))');
-            return;
-        }
+    // Prototip zincirini koru
+    window.WebSocket.prototype = originalWebSocket.prototype;
+    Object.assign(window.WebSocket, originalWebSocket);
 
+    // GLOBAL: gartic-chat-send fonksiyonunu tanımla
+    window['gartic-chat-send'] = function(message) {
+        // Fonksiyon doğrudan string alır
         if (!myWebSocketId) {
-            console.error('Hata: mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
+            console.error('[Hata] mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
             return;
         }
 
-        // Callback'ten gerçek mesajı al (örneğin: send("merhaba"))
-        const message = callback();
-        if (!message || typeof message !== 'string') {
-            console.error('Geçersiz mesaj.');
+        if (typeof message !== 'string') {
+            console.error('[Hata] Mesaj bir metin olmalıdır.');
             return;
         }
 
-        // Özel formatlı mesajı oluştur
+        // Özel formatlı paketi oluştur
         const packet = `42["11","${myWebSocketId}","${message}"]`;
-        
-        // Tüm açık WebSocket bağlantılarında dene
+
+        // Tüm açık WS bağlantılarında dene
         for (const ws of window.__wsInstances || []) {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(packet);
@@ -73,10 +65,7 @@
         }
     };
 
-    // Kolaylık için send fonksiyonunu dışa aktar
-    window.send = function(text) { return text; };
-
-    // Açık WebSocket örneklerini takip et (send için)
+    // Açık WS bağlantılarını takip et
     const instances = [];
     const originalWS = window.WebSocket;
     window.WebSocket = function(...args) {
@@ -92,4 +81,5 @@
     window.WebSocket.prototype = originalWS.prototype;
     Object.assign(window.WebSocket, originalWS);
 
+    console.log('%c[ChatSender] Hazır. Konsola `gartic-chat-send("merhaba")` yazarak mesaj gönderebilirsin.', 'color: #00ff88;');
 })();
