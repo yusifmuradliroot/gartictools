@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dynamic JS Injector & Updater V2
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.0.5
 // @description  Securely injects the gartictools core script.
 // @author       Yusf
 // @match        https://gartic.io/*
@@ -12,4 +12,62 @@
 // @updateURL    https://raw.githubusercontent.com/yusifmuradliroot/gartictools-openscript_reconstruction/refs/heads/main/loader_main/loader_1.0.0_US.js.txt
 // ==/UserScript==
 
-(function(){'use strict';const t="https://raw.githubusercontent.com/yusifmuradliroot/gartictools-openscript_reconstruction/refs/heads/main/loader_main/inject.js.txt",e=window.WebSocket;window.WebSocket=function(n,r){return new e(n,r)};window.WebSocket.prototype=e.prototype,Object.assign(window.WebSocket,e);function n(r){window.WebSocket=e;const o=document.createElement("script");o.textContent=r,o.type="text/javascript",(document.head||document.documentElement).appendChild(o)}GM_xmlhttpRequest({method:"GET",url:t,onload:function(r){200===r.status&&r.responseText?n(r.responseText):window.WebSocket=e},onerror:function(){window.WebSocket=e}})})();
+/*
+LICENSE:
+This software is for personal use only. No redistribution allowed.
+By using this script, you agree to the terms of the repository license.
+Unauthorized commercial use or sharing is prohibited.
+*/
+
+(function() {
+    'use strict';
+
+    const RAW_SCRIPT_URL = "https://raw.githubusercontent.com/yusifmuradliroot/gartictools-openscript_reconstruction/refs/heads/main/loader_main/inject.js.txt";
+
+    const OriginalWebSocket = window.WebSocket;
+
+    window.WebSocket = function(url, protocols) {
+        return new OriginalWebSocket(url, protocols);
+    };
+    window.WebSocket.prototype = OriginalWebSocket.prototype;
+    Object.assign(window.WebSocket, OriginalWebSocket);
+
+    function injectFullLogger(code) {
+        window.WebSocket = OriginalWebSocket;
+        
+        // Extract version from the first line if it exists (e.g., // v1.0.0)
+        let version = "Unknown";
+        const firstLine = code.split('\n')[0];
+        if (firstLine && firstLine.includes('//')) {
+            const match = firstLine.match(/\/\/\s*v?(\d+\.\d+\.\d+)/i);
+            if (match) {
+                version = match[1];
+            }
+        }
+
+        GM_addElement('script', {
+            textContent: code,
+            type: 'text/javascript'
+        });
+
+        console.log(`%c[GarticTools] Injected successfully. Version: ${version}`, 'color: #00ff88; font-weight: bold;');
+    }
+
+    GM_xmlhttpRequest({
+        method: "GET",
+        url: RAW_SCRIPT_URL,
+        onload: function(response) {
+            if (response.status === 200 && response.responseText) {
+                injectFullLogger(response.responseText);
+            } else {
+                window.WebSocket = OriginalWebSocket;
+                console.error("[GarticTools] Failed to fetch inject script.");
+            }
+        },
+        onerror: function() {
+            window.WebSocket = OriginalWebSocket;
+            console.error("[GarticTools] Network error fetching inject script.");
+        }
+    });
+
+})();
