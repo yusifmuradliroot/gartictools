@@ -1,42 +1,34 @@
 (function() {
     'use strict';
 
-    // Zaten enjekte edildiyse tekrar çalışma
     if (window.__GarticSenderInjected) return;
     window.__GarticSenderInjected = true;
 
     let myWebSocketId = null;
+    let activeWsInstance = null;
     const originalWebSocket = window.WebSocket;
 
-    // 1. WebSocket Sınıfını Sarmala (Patching)
+    // WebSocket sınıfını patch'le
     window.WebSocket = class extends originalWebSocket {
         constructor(url) {
             super(url);
+            activeWsInstance = this; // En son açılan bağlantıyı takip et
 
-            // Gelen mesajları dinle
+            // ID yakalama
             this.addEventListener('message', function(event) {
                 try {
-                    // Sadece string mesajları işle
-                    if (typeof event.data === 'string') {
-                        // Odaya giriş paketini yakala: 42["5", ...]
-                        if (event.data.startsWith('42["5",')) {
-                            // JSON parse et (42 prefix'ini kaldırarak)
-                            const jsonStr = event.data.substring(2); 
-                            const parts = JSON.parse(jsonStr);
-                            
-                            // 3. eleman (index 2) benim ID'mdir
-                            if (parts && parts.length > 2) {
-                                myWebSocketId = parts[2];
-                                console.log('[GarticTools] mywebsocketid alındı:', myWebSocketId);
-                            }
+                    if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
+                        const jsonStr = event.data.substring(2);
+                        const parts = JSON.parse(jsonStr);
+                        if (parts && parts.length > 2) {
+                            myWebSocketId = parts[2];
+                            console.log('[GarticTools] mywebsocketid alındı:', myWebSocketId);
                         }
                     }
-                } catch (e) {
-                    // Hataları sessizce yut
-                }
+                } catch (e) {}
             });
 
-            // Send fonksiyonunu koru
+            // Orijinal send'i koru
             const originalSend = this.send;
             this.send = function(data) {
                 return originalSend.apply(this, arguments);
@@ -44,87 +36,36 @@
         }
     };
 
-    // Prototip zincirini düzelt
     window.WebSocket.prototype = originalWebSocket.prototype;
     Object.assign(window.WebSocket, originalWebSocket);
 
-    // 2. gsend Fonksiyonunu Tanımla
+    // Mesaj gönderme fonksiyonu
     const sendFunction = function(message) {
         if (!myWebSocketId) {
-            console.error('[HATA] mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
+            console.error('[GarticTools HATA] mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
             return;
         }
-
         if (typeof message !== 'string') {
-            console.error('[HATA] Mesaj bir metin olmalıdır.');
+            console.error('[GarticTools HATA] Mesaj bir metin olmalıdır.');
+            return;
+        }
+        if (!activeWsInstance || activeWsInstance.readyState !== WebSocket.OPEN) {
+            console.error('[GarticTools HATA] Aktif WebSocket bağlantısı bulunamadı.');
             return;
         }
 
-        // Paket formatı: 42["11","ID","MESAJ"]
         const packet = `42["11","${myWebSocketId}","${message}"]`;
-
-        // Açık olan herhangi bir WebSocket bağlantısını bul ve gönder
-        // Not: window.__wsInstances yerine direkt active connection bulmaya çalışıyoruz
-        // Ancak en garantisi, patch edilen WS instance'larını takip etmektir.
-        
-        // Basit çözüm: Son oluşturulan WS instance'ını kullanmak yerine,
-        // tüm açık WS'leri taramak daha sağlıklıdır ama burada tek bir aktif oyun var.
-        // Eğer yukarıdaki patch çalıştıysa, bu fonksiyon çağrıldığında myWebSocketId dolu olmalı.
-        
-        // Konsola log bas
-        console.log(`[GarticChat] Gönderiliyor: ${packet}`);
-        
-        // Gerçek gönderim için, sayfadaki mevcut WS objesini bulmamız lazım.
-        // Gartic.io genellikle tek bir WS kullanır.
-        // En güvenli yöntem: Sayfa yüklendiğinde oluşan WS'i bir yerde tutmak.
-        // Ancak biz burada "patch" yaptığımız için, yeni oluşturulan her WS bizim kontrolümüzde.
-        
-        // Alternatif ve daha sağlam yöntem: unsafeWindow üzerinden erişim
-        // Ancak GM_addElement ile inject ettiğimiz için window zaten page context'tir.
-        
-        // Deneme: Aktif WS'i bulup gönderme
-        // Bu kısım biraz tricky olabilir çünkü WS instance'larına dışarıdan erişim zordur.
-        // Onun yerine, send fonksiyonunu çağırdığımızda, o anki aktif WS'e erişmeliyiz.
-        
-        // Çözüm: Patch sırasında instance'ı global bir değişkene atalım.
-        if (window.__lastActiveWS && window.__lastActiveWS.readyState === WebSocket.OPEN) {
-             window.__lastActiveWS.send(packet);
-        } else {
-             console.error("[HATA] Aktif WebSocket bağlantısı bulunamadı.");
-        }
+        activeWsInstance.send(packet);
+        console.log(`[GarticTools] Gönderildi: ${message}`);
     };
 
-    // 3. Instance Takibi (Son açılan WS'i tut)
-    const instances = [];
-    const originalWSConstructor = window.WebSocket; // Artık bizim class'ımız
-    
-    // Constructor'ı tekrar sarmalayarak instance'ı kaydet
-    window.WebSocket = function(...args) {
-        const instance = new originalWSConstructor(...args);
-        window.__lastActiveWS = instance; // En son açılanı global'e ata
-        instances.push(instance);
-        
-        instance.addEventListener('close', () => {
-            if (window.__lastActiveWS === instance) {
-                window.__lastActiveWS = null;
-            }
-        });
-        
-        return instance;
-    };
-    
-    // Prototype'ı tekrar bağla
-    window.WebSocket.prototype = originalWSConstructor.prototype;
-    Object.assign(window.WebSocket, originalWSConstructor);
-
-    // 4. Fonksiyonu Global'e Ata
-    // unsafeWindow kullanımı, sayfanın kendi konsolundan erişilebilmesini garanti eder.
-    try {
+    // 🔥 GLOBAL KAPSAMA ZORLA EKLE
+    window.gsend = sendFunction;
+    if (typeof unsafeWindow !== 'undefined') {
         unsafeWindow.gsend = sendFunction;
-    } catch (e) {
-        window.gsend = sendFunction;
     }
 
+    // Doğrulama logu
     console.log('%c[GarticTools] Hazır! Konsola gsend("mesaj") yazabilirsiniz.', 'color: #00ff88; font-weight: bold;');
-
+    console.log('[GarticTools] gsend tanımlı mı?', typeof window.gsend);
 })();
