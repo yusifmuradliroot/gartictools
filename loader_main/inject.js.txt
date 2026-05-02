@@ -6,21 +6,22 @@
 
     let myWsId = null;
     let activeWs = null;
+    const chatLog = []; // Son 10 mesajı tutacak dizi
+    const MAX_LOGS = 10;
     const OriginalWebSocket = window.WebSocket;
 
-    // 1. WebSocket Patching & ID Yakalama
+    // 1. WebSocket Patching & ID Yakalama & Chat Loglama
     window.WebSocket = function(url, protocols) {
         console.log('[GarticTools] Yeni WebSocket bağlantısı tespit edildi:', url);
         const ws = new OriginalWebSocket(url, protocols);
         
-        // Aktif WS'i global olarak tut (Debug için)
         activeWs = ws;
         window._gt_ws = ws; 
 
         ws.addEventListener('message', function(event) {
             try {
                 if (typeof event.data === 'string') {
-                    // Yöntem 1: Standart "42["5",..." paketi
+                    // --- ID YAKALAMA ---
                     if (event.data.startsWith('42["5",')) {
                         const jsonStr = event.data.slice(2);
                         const data = JSON.parse(jsonStr);
@@ -31,33 +32,49 @@
                             console.log('[GarticTools] WebSocket ID yakalandı:', myWsId);
                         }
                     } 
-                    // Yöntem 2: Alternatif paket yapısı kontrolü (Güvenlik ağı)
-                    else if (event.data.includes('"criador"') || event.data.includes('"idioma"')) {
-                         try {
-                             const jsonStr = event.data.slice(2);
-                             const data = JSON.parse(jsonStr);
-                             // Genellikle bu tip büyük paketlerde ID 3. elemandır veya içinde geçer
-                             if (Array.isArray(data) && data.length > 2 && typeof data[2] === 'number') {
-                                 myWsId = data[2];
-                                 window._gt_id = myWsId;
-                                 updateStatus("Bağlı (ID Alındı)", "#00ff88");
-                                 console.log('[GarticTools] Alternatif yöntemle ID yakalandı:', myWsId);
-                             }
-                         } catch(e) {}
+                    
+                    // --- CHAT MESAJI YAKALAMA ---
+                    else if (event.data.startsWith('42["11",')) {
+                        try {
+                            const jsonStr = event.data.slice(2);
+                            const data = JSON.parse(jsonStr);
+                            
+                            // Gartic chat paketi genelde: ["chat", nick, message, color, ...] şeklindedir
+                            // veya ["chat", {nick:..., msg:...}] şeklinde olabilir.
+                            // En yaygın formatı kontrol edelim:
+                            
+                            let sender = "Bilinmiyor";
+                            let message = "";
+                            
+                            if (Array.isArray(data)) {
+                                // Format: ["chat", "Nick", "Mesaj", ...]
+                                if (data.length >= 3) {
+                                    sender = data[1];
+                                    message = data[2];
+                                } 
+                                // Format: ["chat", {obj}]
+                                else if (data.length === 2 && typeof data[1] === 'object') {
+                                    sender = data[1].nick || "Bilinmiyor";
+                                    message = data[1].msg || data[1].message || "";
+                                }
+                            }
+
+                            if (message) {
+                                addChatLog(sender, message);
+                            }
+                        } catch (e) {
+                            console.warn("[GarticTools] Chat parse hatası:", e);
+                        }
                     }
                 }
-            } catch (e) {
-                // Hataları sessizce yut
-            }
+            } catch (e) {}
         });
 
         ws.addEventListener('open', () => {
-            console.log('[GarticTools] WebSocket bağlantısı açıldı.');
             updateStatus("Bağlanıyor...", "#ffff00");
         });
 
         ws.addEventListener('close', () => {
-            console.log('[GarticTools] WebSocket bağlantısı kapandı.');
             activeWs = null;
             myWsId = null;
             window._gt_ws = null;
@@ -66,21 +83,19 @@
         });
 
         ws.addEventListener('error', (err) => {
-            console.error('[GarticTools] WebSocket hatası:', err);
             updateStatus("Hata", "#ff3333");
         });
 
         return ws;
     };
 
-    // Prototype ve statik özellikleri koru
     window.WebSocket.prototype = OriginalWebSocket.prototype;
     window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
     window.WebSocket.OPEN = OriginalWebSocket.OPEN;
     window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
     window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
 
-    // 2. UI Oluşturma (Ortalanmış)
+    // 2. UI Oluşturma (Ortalanmış + Chat Log)
     function createUI() {
         const container = document.createElement('div');
         container.id = 'gartic-tools-ui';
@@ -89,7 +104,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 320px;
+            width: 350px;
             background: rgba(20, 20, 20, 0.95);
             border: 1px solid #444;
             border-radius: 8px;
@@ -117,13 +132,40 @@
         `;
         header.innerHTML = `<span style="font-weight:bold; font-size:14px;">🎨 Gartic Chat</span><span id="gt-status" style="font-size:12px; color:#aaa;">Bekleniyor...</span>`;
         
-        // Content
+        // Content Area
         const content = document.createElement('div');
-        content.style.cssText = `padding: 15px;`;
+        content.style.cssText = `padding: 10px; display: flex; flex-direction: column; gap: 10px;`;
+
+        // --- CHAT LOG ALANI ---
+        const logContainer = document.createElement('div');
+        logContainer.id = 'gt-chat-log';
+        logContainer.style.cssText = `
+            height: 150px;
+            overflow-y: auto;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        `;
+        // Scrollbar stili
+        const style = document.createElement('style');
+        style.innerHTML = `
+            #gt-chat-log::-webkit-scrollbar { width: 6px; }
+            #gt-chat-log::-webkit-scrollbar-track { background: #222; }
+            #gt-chat-log::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+            #gt-chat-log::-webkit-scrollbar-thumb:hover { background: #777; }
+        `;
+        document.head.appendChild(style);
+
+        content.appendChild(logContainer);
 
         // Input Area
         const inputGroup = document.createElement('div');
-        inputGroup.style.cssText = `display: flex; gap: 8px; margin-top: 5px;`;
+        inputGroup.style.cssText = `display: flex; gap: 8px;`;
 
         const input = document.createElement('input');
         input.type = 'text';
@@ -158,6 +200,7 @@
         inputGroup.appendChild(input);
         inputGroup.appendChild(btn);
         content.appendChild(inputGroup);
+        
         container.appendChild(header);
         container.appendChild(content);
         document.body.appendChild(container);
@@ -193,17 +236,15 @@
             if (!msg) return;
             
             if (!myWsId) {
-                alert('Hata: WebSocket ID henüz alınmadı. Lütfen odaya girin ve bekleyin.');
-                console.warn('[GarticTools] myWsId boş. Mevcut ID:', window._gt_id);
+                alert('Hata: WebSocket ID henüz alınmadı.');
                 return;
             }
             if (!activeWs || activeWs.readyState !== WebSocket.OPEN) {
-                alert('Hata: Aktif WebSocket bağlantısı bulunamadı veya açık değil.');
+                alert('Hata: Aktif bağlantı yok.');
                 return;
             }
 
             const packet = `42["11","${myWsId}","${msg}"]`;
-            console.log('[GarticTools] Paket gönderiliyor:', packet);
             activeWs.send(packet);
             input.value = ''; 
             input.focus();
@@ -222,6 +263,48 @@
                 statusEl.style.color = color;
             }
         };
+
+        // Chat Log Ekleme Fonksiyonu
+        window.addChatLog = (sender, message) => {
+            const logEl = document.getElementById('gt-chat-log');
+            if (!logEl) return;
+
+            // Mesajı diziye ekle
+            chatLog.push({ sender, message, time: new Date().toLocaleTimeString() });
+            if (chatLog.length > MAX_LOGS) {
+                chatLog.shift(); // En eskiyi sil
+            }
+
+            // UI'ı güncelle
+            renderChatLog();
+        };
+
+        function renderChatLog() {
+            const logEl = document.getElementById('gt-chat-log');
+            if (!logEl) return;
+            
+            logEl.innerHTML = ''; // Temizle
+            
+            chatLog.forEach(item => {
+                const row = document.createElement('div');
+                row.style.cssText = `margin-bottom: 4px; word-break: break-word;`;
+                
+                const senderSpan = document.createElement('span');
+                senderSpan.style.cssText = `color: #aaa; font-weight: bold; margin-right: 5px;`;
+                senderSpan.textContent = `[${item.sender}]`;
+                
+                const msgSpan = document.createElement('span');
+                msgSpan.style.cssText = `color: #ddd;`;
+                msgSpan.textContent = item.message;
+
+                row.appendChild(senderSpan);
+                row.appendChild(msgSpan);
+                logEl.appendChild(row);
+            });
+
+            // Otomatik aşağı kaydır
+            logEl.scrollTop = logEl.scrollHeight;
+        }
     }
 
     // Sayfa yüklendiğinde UI'ı oluştur
