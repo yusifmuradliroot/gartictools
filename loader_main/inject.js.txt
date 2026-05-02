@@ -1,8 +1,8 @@
 (function() {
     'use strict';
 
-    if (window.__chatSenderInjected) return;
-    window.__chatSenderInjected = true;
+    if (window.__GarticSenderInjected) return;
+    window.__GarticSenderInjected = true;
 
     let myWebSocketId = null;
     const originalWebSocket = window.WebSocket;
@@ -19,7 +19,6 @@
                         const parts = JSON.parse(event.data.replace(/^42/, ''));
                         if (parts.length > 2) {
                             myWebSocketId = parts[2];
-                            console.log('[ChatSender] mywebsocketid alındı:', myWebSocketId);
                         }
                     }
                 } catch (e) {
@@ -39,16 +38,15 @@
     window.WebSocket.prototype = originalWebSocket.prototype;
     Object.assign(window.WebSocket, originalWebSocket);
 
-    // GLOBAL: gartic-chat-send fonksiyonunu tanımla
-    window['gartic-chat-send'] = function(message) {
-        // Fonksiyon doğrudan string alır
+    // GLOBAL: gsend fonksiyonunu tanımla
+    window.gsend = function(message) {
         if (!myWebSocketId) {
-            console.error('[Hata] mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
+            console.error('[HATA] mywebsocketid alınamadı. Lütfen odaya bağlanın.');
             return;
         }
 
         if (typeof message !== 'string') {
-            console.error('[Hata] Mesaj bir metin olmalıdır.');
+            console.error('[HATA] Mesaj bir metin olmalıdır.');
             return;
         }
 
@@ -59,7 +57,6 @@
         for (const ws of window.__wsInstances || []) {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(packet);
-                console.log(`[GarticChat] Mesaj gönderildi: ${message}`);
                 break;
             }
         }
@@ -81,5 +78,5 @@
     window.WebSocket.prototype = originalWS.prototype;
     Object.assign(window.WebSocket, originalWS);
 
-    console.log('%c[ChatSender] Hazır. Konsola `gartic-chat-send("merhaba")` yazarak mesaj gönderebilirsin.', 'color: #00ff88;');
+    console.log('%c[gsend] Hazır. Konsola gsend("merhaba") yazarak mesaj gönderebilirsin.', 'color: #00ff88;');
 })();
