@@ -232,16 +232,16 @@ pre {
 <body>
 <header>
 <h1 class="logo">Yusf</h1>
-<p class="subtitle">GarticTools — Educational WebSocket Analysis Suite</p>
+<p class="subtitle">GarticTools — Təhsili Məqsədlər Üçün WebSocket Analiz Aləti</p>
 </header>
 <section>
 <h2>🎯 Məqsəd</h2>
 <p>
-Bu layihə <strong>Gartic.io</strong> oyununun WebSocket texnologiyasından necə istifadə etdiyini təhlil etmək üçün yaradılıb.
-Bu, <strong>təhsil, tədqiqat və texniki maraq</strong> məqsədləri üçündür.
+Bu layihə <strong>Gartic.io</strong> oyununun real vaxt rejimində rabitə üçün WebSockets texnologiyasından necə istifadə etdiyini təhlil edir.
+Bu alət <strong>təhsil, tədqiqat və texniki maraq</strong> məqsədləri üçün yaradılıb.
 </p>
 <p>
-Məqsəd: Keyfiyyəti yaxşılaşdırmaq üçün oyun davranışını anlamaq — etik və qanuni olaraq.
+Məqsəd: Oyun davranışını anlamaqla keyfiyyətin yaxşılaşdırılması — etik və qanuni olaraq.
 </p>
 </section>
 <section>
@@ -295,17 +295,50 @@ Siz kodu öyrənə bilərsiniz, lakin icazəsiz yayılması və ya istifadəsi q
       <span class="close-instructions">&times;</span>
     </div>
     <div class="modal-body">
-      <ol>
-        <li>Əvvəlcə Gartic.io saytına brauzerinizdən daxil olun</li>
-        <li>Sağ yuxarı küncdəki üç nöqtəyə (⋮) vurun</li>
-        <li>"Desktop sayt kimi aç" seçin</li>
-        <li>Saytı yenidən yükləyin (yenidən açın)</li>
-        <li>Söhbət xanasına vurduqda klaviaturanın düzgün göstərilməsi üçün ekranı yana çevirin</li>
-        <li>Əgər problem davam edirsə, brauzerinizin keşini təmizləyin</li>
-        <li>Ən yaxşı nəticə üçün Chrome və ya Firefox istifadə edin</li>
+      <ol style="padding-left: 1.5rem;">
+        <li style="margin-bottom: 0.8rem;">Əvvəlcə xüsusi brauzeri aşağıdakı linkdən yükləyin:
+          <div style="margin-top: 0.5rem; margin-bottom: 0.8rem;">
+            <a href="https://drive.google.com/file/d/1JIUW-tybjiGCeyAkdz8QoNSi9FE325RU/view?usp=drive_link" target="_blank" style="display: inline-block; background: var(--accent); color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-size: 0.95rem; text-align: center;">Brauzeri Yüklə</a>
+          </div>
+        </li>
+        <li style="margin-bottom: 0.8rem;">Brauzeri quraşdırın və açın.</li>
+        <li style="margin-bottom: 0.8rem;">Gartic.io saytına daxil olun.</li>
+        <li style="margin-bottom: 0.8rem;">Aşağıdakı ekran görüntülərinə baxaraq düzgün parametrləri seçin:</li>
       </ol>
-      <div class="warning-box">
-        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçündür. Oyunda hər hansı pozuntu yaratmaq qadağandır.
+
+      <!-- Şəkillər -->
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin: 1.2rem 0; align-items: center;">
+        <img src="via_1.jpg" alt="Addım 1 - Parametr seçimi" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <img src="via_2.jpg" alt="Addım 2 - Parametr seçimi" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <img src="via_3.jpg" alt="Addım 3 - Parametr seçimi" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <img src="via_4.jpg" alt="Addım 4 - Parametr seçimi" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <img src="via_5.jpg" alt="Addım 5 - Parametr seçimi" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      </div>
+
+      <ol start="5" style="padding-left: 1.5rem; margin-top: 1.2rem;">
+        <li style="margin-bottom: 0.8rem;">Aşağıdakı "Kopyala" düyməsini basın və skript linkini saxlayın:</li>
+      </ol>
+
+      <!-- Linkin Kopyalanması -->
+      <div style="margin: 1.2rem 0; padding: 1rem; background: rgba(0,0,0,0.05); border-radius: 6px; text-align: center;">
+        <button id="copyScriptLinkBtn" style="background: var(--accent); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 500;">
+          Linki Kopyala
+        </button>
+        <p id="copyStatus" style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;"></p>
+      </div>
+
+      <ol start="6" style="padding-left: 1.5rem;">
+        <li style="margin-bottom: 0.8rem;">Skripti yaddaşda saxladığınız yerdə (məsələn, notepad) açın.</li>
+        <li style="margin-bottom: 0.8rem;">Aşağıdakı ekran görüntüsündə göstərildiyi kimi, kopyalanan linki skriptə yapışdırın:</li>
+      </ol>
+
+      <!-- 6-cı Şəkil -->
+      <div style="margin: 1.2rem 0; text-align: center;">
+        <img src="via_6.jpg" alt="Addım 6 - Linkin yapışdırılması" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      </div>
+
+      <div style="margin-top: 1.2rem; padding: 1rem; background: rgba(37, 99, 235, 0.1); border-radius: 6px;">
+        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçün istifadə edilməlidir. Oyunda hər hansı pozuntu yaratmaq qadağandır.
       </div>
     </div>
     <div class="modal-footer">
@@ -322,12 +355,12 @@ Siz kodu öyrənə bilərsiniz, lakin icazəsiz yayılması və ya istifadəsi q
       <span class="close-instructions">&times;</span>
     </div>
     <div class="modal-body">
-      <ol>
-        <li>Gartic.io saytını brauzerinizdə açın (Chrome, Firefox və ya Edge)</li>
-        <li>Sağ klik edib "Səhifə məlumatı" > "Brauzer rejimi" seçin</li>
-        <li>"Desktop" rejimini seçin (mobil rejim deyil)</li>
-        <li>Ctrl + Shift + I düymələrini basın (və ya F12) və "Console" (Konsol) bölməsinə keçin</li>
-        <li>Aşağıdakı kodu konsola daxil edin və Enter basın:</li>
+      <ol style="padding-left: 1.5rem;">
+        <li style="margin-bottom: 0.8rem;">Gartic.io saytını brauzerinizdə açın (Chrome, Firefox və ya Edge)</li>
+        <li style="margin-bottom: 0.8rem;">Sağ klik edib "Səhifə məlumatı" > "Brauzer rejimi" seçin</li>
+        <li style="margin-bottom: 0.8rem;">"Desktop" rejimini seçin (mobil rejim deyil)</li>
+        <li style="margin-bottom: 0.8rem;">Ctrl + Shift + I düymələrini basın (və ya F12) və "Console" (Konsol) bölməsinə keçin</li>
+        <li style="margin-bottom: 0.8rem;">Aşağıdakı kodu konsola daxil edin və Enter basın:</li>
       </ol>
       <pre>// Söhbət funksiyasını düzəldən skript
 if (typeof fixChat === 'undefined') {
@@ -339,12 +372,12 @@ if (typeof fixChat === 'undefined') {
   };
   window.addEventListener('load', fixChat);
 }</pre>
-      <ol start="6">
-        <li>Saytı yenidən yükləyin (F5 düyməsi)</li>
-        <li>Söhbət indi düzgün işləməlidir</li>
+      <ol start="6" style="padding-left: 1.5rem;">
+        <li style="margin-bottom: 0.8rem;">Saytı yenidən yükləyin (F5 düyməsi)</li>
+        <li style="margin-bottom: 0.8rem;">Söhbət indi düzgün işləməlidir</li>
       </ol>
-      <div class="warning-box">
-        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçündür. Oyunda hər hansı pozuntu yaratmaq qadağandır.
+      <div style="margin-top: 1.2rem; padding: 1rem; background: rgba(37, 99, 235, 0.1); border-radius: 6px;">
+        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçün istifadə edilməlidir. Oyunda hər hansı pozuntu yaratmaq qadağandır.
       </div>
     </div>
     <div class="modal-footer">
@@ -355,7 +388,7 @@ if (typeof fixChat === 'undefined') {
 
 <footer>
 &copy; 2026 <strong>Yusf</strong> •
-<a href="https://github.com/yusifmuradliroot/gartictools" target="_blank">GitHub-da baxın</a>
+<a href="https://github.com/yusifmuradliroot/gartictools" target="_blank">GitHub-da Baxın</a>
 </footer>
 <script>
 console.log("%cWelcome to GarticTools by Yusf", "color: #2563eb; font-weight: bold;");
@@ -422,6 +455,22 @@ document.addEventListener('DOMContentLoaded', function() {
       windowsInstructions.style.display = 'none';
       document.body.style.overflow = 'auto';
     }
+  });
+
+  // Linkin kopyalanması
+  document.getElementById('copyScriptLinkBtn').addEventListener('click', function() {
+    const link = 'https://raw.githubusercontent.com/yusifmuradliroot/gartictools-openscript_reconstruction/refs/heads/main/loader_main/loader_1.0.0_US.js.txt';
+    navigator.clipboard.writeText(link).then(() => {
+      const status = document.getElementById('copyStatus');
+      status.textContent = 'Link uğurla kopyalandı!';
+      status.style.opacity = 1;
+      setTimeout(() => { status.style.opacity = 0; }, 2000);
+    }).catch(err => {
+      const status = document.getElementById('copyStatus');
+      status.textContent = 'Kopyalama uğursuz oldu. Xahiş edirik, linki manual kopyalayın.';
+      status.style.opacity = 1;
+      console.error('Kopyalama xətası:', err);
+    });
   });
 });
 </script>
