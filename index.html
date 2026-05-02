@@ -1,200 +1,429 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="az">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="GarticTools by Yusf – Educational WebSocket analysis for Gartic.io" />
-  <title>Yusf | GarticTools</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content="GarticTools by Yusf – Educational WebSocket analysis for Gartic.io" />
+<title>Yusf | GarticTools</title>
+<!-- Favicon -->
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<style>
+:root {
+--bg: #ffffff;
+--text: #1a1a1a;
+--accent: #2563eb;
+--border: #d0d0d0;
+--card-bg: #f8f9fa;
+}
+@media (prefers-color-scheme: dark) {
+:root {
+--bg: #0d1117;
+--text: #e0e0e0;
+--accent: #3b82f6;
+--border: #30363d;
+--card-bg: #161b22;
+}
+}
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+body {
+font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+background: var(--bg);
+color: var(--text);
+line-height: 1.7;
+transition: all 0.3s ease;
+padding: 1.5rem;
+}
+@media (min-width: 768px) {
+body {
+padding: 2.5rem 3rem;
+max-width: none;
+}
+}
+header {
+text-align: center;
+margin-bottom: 2.5rem;
+animation: fadeIn 1s ease-in;
+}
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(-10px); }
+to   { opacity: 1; transform: translateY(0); }
+}
+.logo {
+font-size: 3.5rem;
+font-weight: 700;
+color: var(--accent);
+letter-spacing: -1.5px;
+margin: 0;
+}
+.subtitle {
+font-size: 1.2rem;
+opacity: 0.8;
+font-weight: 400;
+margin-top: 0.5rem;
+}
+section {
+margin-bottom: 2.2rem;
+padding: 1.6rem;
+border-radius: 10px;
+background: var(--card-bg);
+border: 1px solid var(--border);
+box-shadow: 0 1px 3px rgba(0,0,0,0.1),
+0 1px 2px rgba(0,0,0,0.06);
+}
+@media (prefers-color-scheme: dark) {
+section {
+box-shadow: 0 1px 3px rgba(255,255,255,0.08),
+0 1px 2px rgba(255,255,255,0.04);
+}
+}
+h2 {
+margin-bottom: 1rem;
+font-size: 1.4rem;
+color: var(--accent);
+display: flex;
+align-items: center;
+gap: 8px;
+}
+ul {
+padding-left: 1.5rem;
+}
+li {
+margin: 0.6rem 0;
+opacity: 0.95;
+}
+strong {
+color: var(--text);
+font-weight: 600;
+}
+a {
+color: var(--accent);
+text-decoration: none;
+}
+a:hover {
+text-decoration: underline;
+}
+footer {
+text-align: center;
+margin-top: 3rem;
+padding-top: 1.2rem;
+border-top: 1px solid var(--border);
+font-size: 0.95rem;
+opacity: 0.7;
+}
+@media (max-width: 600px) {
+body {
+padding: 1.2rem;
+font-size: 0.95rem;
+}
+.logo {
+font-size: 2.8rem;
+}
+section {
+padding: 1.3rem;
+}
+}
 
-  <!-- Favicon -->
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+/* Gartic-Chat-Fix Styles */
+#chat-fix-section {
+  margin-top: 1.5rem;
+}
 
-  <style>
-    :root {
-      --bg: #ffffff;
-      --text: #1a1a1a;
-      --accent: #2563eb;
-      --border: #d0d0d0;
-      --card-bg: #f8f9fa;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0d1117;
-        --text: #e0e0e0;
-        --accent: #3b82f6;
-        --border: #30363d;
-        --card-bg: #161b22;
-      }
-    }
+#chat-fix-section h2 {
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+#openChatFixBtn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
 
-    body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.7;
-      transition: all 0.3s ease;
-      padding: 1.5rem;
-    }
+#openChatFixBtn:hover {
+  opacity: 0.9;
+}
 
-    @media (min-width: 768px) {
-      body {
-        padding: 2.5rem 3rem;
-        max-width: none;
-      }
-    }
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
 
-    header {
-      text-align: center;
-      margin-bottom: 2.5rem;
-      animation: fadeIn 1s ease-in;
-    }
+.modal-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 90%;
+  max-width: 600px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+.modal-header {
+  padding: 1.2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .logo {
-      font-size: 3.5rem;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: -1.5px;
-      margin: 0;
-    }
+.modal-body {
+  padding: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
-    .subtitle {
-      font-size: 1.2rem;
-      opacity: 0.8;
-      font-weight: 400;
-      margin-top: 0.5rem;
-    }
+.modal-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
 
-    section {
-      margin-bottom: 2.2rem;
-      padding: 1.6rem;
-      border-radius: 10px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 
-                  0 1px 2px rgba(0,0,0,0.06);
-    }
+.os-btn {
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
 
-    @media (prefers-color-scheme: dark) {
-      section {
-        box-shadow: 0 1px 3px rgba(255,255,255,0.08),
-                    0 1px 2px rgba(255,255,255,0.04);
-      }
-    }
+.os-btn:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
 
-    h2 {
-      margin-bottom: 1rem;
-      font-size: 1.4rem;
-      color: var(--accent);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+pre {
+  background: rgba(0,0,0,0.05);
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
 
-    ul {
-      padding-left: 1.5rem;
-    }
-
-    li {
-      margin: 0.6rem 0;
-      opacity: 0.95;
-    }
-
-    strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    footer {
-      text-align: center;
-      margin-top: 3rem;
-      padding-top: 1.2rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.95rem;
-      opacity: 0.7;
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 1.2rem;
-        font-size: 0.95rem;
-      }
-      .logo {
-        font-size: 2.8rem;
-      }
-      section {
-        padding: 1.3rem;
-      }
-    }
-  </style>
+.warning-box {
+  margin-top: 1.2rem;
+  padding: 1rem;
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 6px;
+}
+</style>
 </head>
 <body>
+<header>
+<h1 class="logo">Yusf</h1>
+<p class="subtitle">GarticTools — Educational WebSocket Analysis Suite</p>
+</header>
+<section>
+<h2>🎯 Məqsəd</h2>
+<p>
+Bu layihə <strong>Gartic.io</strong> oyununun WebSocket texnologiyasından necə istifadə etdiyini təhlil etmək üçün yaradılıb.
+Bu, <strong>təhsil, tədqiqat və texniki maraq</strong> məqsədləri üçündür.
+</p>
+<p>
+Məqsəd: Keyfiyyəti yaxşılaşdırmaq üçün oyun davranışını anlamaq — etik və qanuni olaraq.
+</p>
+</section>
+<section>
+<h2>⚠️ Qaydalar</h2>
+<ul>
+<li>✅ <strong>İcazə verilir:</strong> Kodu yoxlamaq, şəxsi testlər, akademik tədqiqat</li>
+<li>❌ <strong>Qadağandır:</strong> Xəyanət, botlar, spam, digər oyunçuları narahat etmək</li>
+<li>🤖 <strong>AI Qeyd:</strong> AI-assisted təhlil mümkündür — sui-istifadə qadağandır</li>
+</ul>
+</section>
+<section>
+<h2>🔐 Mülkiyyət</h2>
+<p>
+Bütün skriptlər <strong>Yusif Muradli (Yusf)</strong> tərəfindən yaradılıb və mülkiyyət hüququ ilə qorunur.
+</p>
+<p>
+Siz kodu öyrənə bilərsiniz, lakin icazəsiz yayılması və ya istifadəsi qanunsuzdur.
+İstədiyim zaman işimin silinməsini tələb etmək hüququm var.
+</p>
+</section>
 
-  <header>
-    <h1 class="logo">Yusf</h1>
-    <p class="subtitle">GarticTools — Educational WebSocket Analysis Suite</p>
-  </header>
+<!-- Gartic-Chat-Fix Section -->
+<section id="chat-fix-section">
+  <h2>💬 Gartic-Chat-Fix</h2>
+  <p>Bu alət Gartic.io-da söhbət problemlərini həll etməyə kömək edir. Aşağıdakı düyməyə basaraq başlaya bilərsiniz.</p>
+  <button id="openChatFixBtn">Gartic-Chat-Fix Başlat</button>
+</section>
 
-  <section>
-    <h2>🎯 Purpose</h2>
-    <p>
-      This project analyzes how <strong>Gartic.io</strong> uses WebSockets for real-time communication.
-      It's built for <strong>learning, research, and technical curiosity</strong>.
-    </p>
-    <p>
-      Goal: Understand game behavior to improve quality — ethically and legally.
-    </p>
-  </section>
+<!-- OS Selection Modal -->
+<div id="osModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Gartic-Chat-Fix</h3>
+      <span id="closeModal">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p>Hansı əməliyyat sistemini istifadə edirsiniz?</p>
+      <div>
+        <button id="androidBtn" class="os-btn">📱 Android</button>
+        <button id="windowsBtn" class="os-btn">💻 Windows</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <section>
-    <h2>⚠️ Rules</h2>
-    <ul>
-      <li>✅ <strong>Allowed:</strong> Code inspection, personal testing, academic study</li>
-      <li>❌ <strong>Forbidden:</strong> Cheating, bots, spam, disturbing other players</li>
-      <li>🤖 <strong>AI Note:</strong> AI-assisted analysis is possible — misuse is banned</li>
-    </ul>
-  </section>
+<!-- Android Instructions Modal -->
+<div id="androidInstructions" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Android Təlimatları</h3>
+      <span class="close-instructions">&times;</span>
+    </div>
+    <div class="modal-body">
+      <ol>
+        <li>Əvvəlcə Gartic.io saytına brauzerinizdən daxil olun</li>
+        <li>Sağ yuxarı küncdəki üç nöqtəyə (⋮) vurun</li>
+        <li>"Desktop sayt kimi aç" seçin</li>
+        <li>Saytı yenidən yükləyin (yenidən açın)</li>
+        <li>Söhbət xanasına vurduqda klaviaturanın düzgün göstərilməsi üçün ekranı yana çevirin</li>
+        <li>Əgər problem davam edirsə, brauzerinizin keşini təmizləyin</li>
+        <li>Ən yaxşı nəticə üçün Chrome və ya Firefox istifadə edin</li>
+      </ol>
+      <div class="warning-box">
+        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçündür. Oyunda hər hansı pozuntu yaratmaq qadağandır.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="close-instructions">Bağla</button>
+    </div>
+  </div>
+</div>
 
-  <section>
-    <h2>🔐 Ownership</h2>
-    <p>
-      All scripts are created by <strong>Yusif Muradli (Yusf)</strong> and protected under proprietary license.
-    </p>
-    <p>
-      You may study the code, but redistribution or use without permission is illegal.
-      I reserve the right to request removal of my work at any time.
-    </p>
-  </section>
+<!-- Windows Instructions Modal -->
+<div id="windowsInstructions" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Windows Təlimatları</h3>
+      <span class="close-instructions">&times;</span>
+    </div>
+    <div class="modal-body">
+      <ol>
+        <li>Gartic.io saytını brauzerinizdə açın (Chrome, Firefox və ya Edge)</li>
+        <li>Sağ klik edib "Səhifə məlumatı" > "Brauzer rejimi" seçin</li>
+        <li>"Desktop" rejimini seçin (mobil rejim deyil)</li>
+        <li>Ctrl + Shift + I düymələrini basın (və ya F12) və "Console" (Konsol) bölməsinə keçin</li>
+        <li>Aşağıdakı kodu konsola daxil edin və Enter basın:</li>
+      </ol>
+      <pre>// Söhbət funksiyasını düzəldən skript
+if (typeof fixChat === 'undefined') {
+  var fixChat = function() {
+    console.log('Gartic-Chat-Fix aktivləşdirildi!');
+    // Söhbət elementlərini düzəldən kod burada olacaq
+    document.querySelector('.chat-input').style.bottom = '70px';
+    document.querySelector('.chat-container').style.bottom = '120px';
+  };
+  window.addEventListener('load', fixChat);
+}</pre>
+      <ol start="6">
+        <li>Saytı yenidən yükləyin (F5 düyməsi)</li>
+        <li>Söhbət indi düzgün işləməlidir</li>
+      </ol>
+      <div class="warning-box">
+        <strong>Diqqət:</strong> Bu təlimatlar yalnız təlim məqsədləri üçündür. Oyunda hər hansı pozuntu yaratmaq qadağandır.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="close-instructions">Bağla</button>
+    </div>
+  </div>
+</div>
 
-  <footer>
-    &copy; 2026 <strong>Yusf</strong> • 
-    <a href="https://github.com/yusifmuradliroot/gartictools" target="_blank">View on GitHub</a>
-  </footer>
+<footer>
+&copy; 2026 <strong>Yusf</strong> •
+<a href="https://github.com/yusifmuradliroot/gartictools" target="_blank">GitHub-da baxın</a>
+</footer>
+<script>
+console.log("%cWelcome to GarticTools by Yusf", "color: #2563eb; font-weight: bold;");
+console.log("Purpose: Learning, not exploitation.");
+console.log("Respect the rules. Protect the game.");
 
-  <script>
-    console.log("%cWelcome to GarticTools by Yusf", "color: #2563eb; font-weight: bold;");
-    console.log("Purpose: Learning, not exploitation.");
-    console.log("Respect the rules. Protect the game.");
-  </script>
+// Gartic-Chat-Fix Modal İşlemləri
+document.addEventListener('DOMContentLoaded', function() {
+  // Modal elementləri
+  const openChatFixBtn = document.getElementById('openChatFixBtn');
+  const osModal = document.getElementById('osModal');
+  const closeModal = document.getElementById('closeModal');
+  const androidBtn = document.getElementById('androidBtn');
+  const windowsBtn = document.getElementById('windowsBtn');
+  const androidInstructions = document.getElementById('androidInstructions');
+  const windowsInstructions = document.getElementById('windowsInstructions');
+  const closeInstructions = document.querySelectorAll('.close-instructions');
 
+  // Modalı açmaq
+  openChatFixBtn.addEventListener('click', function() {
+    osModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Scroll-u dayandır
+  });
+
+  // Modalı bağlamaq
+  closeModal.addEventListener('click', function() {
+    osModal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  });
+
+  // Android seçim
+  androidBtn.addEventListener('click', function() {
+    osModal.style.display = 'none';
+    androidInstructions.style.display = 'flex';
+  });
+
+  // Windows seçim
+  windowsBtn.addEventListener('click', function() {
+    osModal.style.display = 'none';
+    windowsInstructions.style.display = 'flex';
+  });
+
+  // Bütün bağlama düymələri
+  closeInstructions.forEach(button => {
+    button.addEventListener('click', function() {
+      androidInstructions.style.display = 'none';
+      windowsInstructions.style.display = 'none';
+      osModal.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    });
+  });
+
+  // Xaricə klikləməklə bağlamaq
+  window.addEventListener('click', function(event) {
+    if (event.target === osModal) {
+      osModal.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    if (event.target === androidInstructions) {
+      androidInstructions.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+    if (event.target === windowsInstructions) {
+      windowsInstructions.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+  });
+});
+</script>
 </body>
 </html>
