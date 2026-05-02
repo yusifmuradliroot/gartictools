@@ -9,6 +9,11 @@
 
     const originalWebSocket = window.WebSocket;
 
+    if (!originalWebSocket) {
+        console.error("[WS-Logger] window.WebSocket not found!");
+        return;
+    }
+
     // Styles
     const STYLE_IN = 'color: #00ff88; font-weight: bold';
     const STYLE_OUT = 'color: #ffaa00; font-weight: bold';
@@ -16,6 +21,7 @@
     const STYLE_DRAW = 'color: #bb86fc; font-style: italic';
     const STYLE_CHAT = 'color: #03dac6';
 
+    // Override WebSocket constructor
     window.WebSocket = class extends originalWebSocket {
         constructor(url, protocols) {
             super(url, protocols);
@@ -71,6 +77,13 @@
             });
         }
     };
+
+    // Ensure prototype chain is correct
+    window.WebSocket.prototype = originalWebSocket.prototype;
+    window.WebSocket.CONNECTING = originalWebSocket.CONNECTING;
+    window.WebSocket.OPEN = originalWebSocket.OPEN;
+    window.WebSocket.CLOSING = originalWebSocket.CLOSING;
+    window.WebSocket.CLOSED = originalWebSocket.CLOSED;
 
     console.log("%c[WS-Logger] WebSocket patched successfully.", "color: #00ff88;");
 })();
