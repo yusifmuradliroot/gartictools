@@ -1,38 +1,27 @@
 (function () {
     'use strict';
 
-    // Prevent multiple injections
     if (window.__wsLoggerInjected) return;
     window.__wsLoggerInjected = true;
 
-    console.log("%c[WS-Logger] Starting WebSocket Logger...", "color: #00ff88; font-weight: bold;");
+    console.log("%c[WS-Logger] Initializing...", "color: #00ff88; font-weight: bold;");
 
     const originalWebSocket = window.WebSocket;
 
-    if (!originalWebSocket) {
-        console.error("[WS-Logger] window.WebSocket not found!");
-        return;
-    }
-
-    // Styles
     const STYLE_IN = 'color: #00ff88; font-weight: bold';
     const STYLE_OUT = 'color: #ffaa00; font-weight: bold';
     const STYLE_URL = 'color: #64b5f6; font-weight: bold';
     const STYLE_DRAW = 'color: #bb86fc; font-style: italic';
     const STYLE_CHAT = 'color: #03dac6';
 
-    // Override WebSocket constructor
     window.WebSocket = class extends originalWebSocket {
         constructor(url, protocols) {
             super(url, protocols);
-
             console.log('%c🔗 [URL] ' + url, STYLE_URL);
 
-            // Intercept Send
             const originalSend = this.send;
             this.send = function(...args) {
                 const data = args[0];
-
                 if (typeof data === 'string') {
                     if (data.startsWith('42["chat"')) {
                         console.log('%c📤 [CHAT OUT] ' + data, STYLE_CHAT);
@@ -44,14 +33,11 @@
                 } else {
                     console.log('%c📤 [BINARY OUT] size=' + (data?.size || data?.length || 0), STYLE_OUT);
                 }
-
                 return originalSend.apply(this, args);
             };
 
-            // Intercept Message
             this.addEventListener('message', (event) => {
                 const data = event.data;
-
                 if (typeof data === 'string') {
                     if (data.startsWith('42["chat"')) {
                         console.log('%c📥 [CHAT IN ] ' + data, STYLE_CHAT);
@@ -67,7 +53,6 @@
                 }
             });
 
-            // Intercept Close/Error
             this.addEventListener('close', (e) => {
                 console.log(`%c❌ [CLOSED] code=${e.code}`, 'color: #cf6679');
             });
@@ -78,12 +63,8 @@
         }
     };
 
-    // Ensure prototype chain is correct
     window.WebSocket.prototype = originalWebSocket.prototype;
-    window.WebSocket.CONNECTING = originalWebSocket.CONNECTING;
-    window.WebSocket.OPEN = originalWebSocket.OPEN;
-    window.WebSocket.CLOSING = originalWebSocket.CLOSING;
-    window.WebSocket.CLOSED = originalWebSocket.CLOSED;
+    Object.assign(window.WebSocket, originalWebSocket);
 
-    console.log("%c[WS-Logger] WebSocket patched successfully.", "color: #00ff88;");
+    console.log("%c[WS-Logger] WebSocket successfully patched.", "color: #00ff88;");
 })();
