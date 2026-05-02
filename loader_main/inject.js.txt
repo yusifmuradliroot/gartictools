@@ -1,4 +1,4 @@
-// v1.0.4
+// v1.0.3
 /*
 LICENSE:
 This software is for personal use only. No redistribution allowed.
@@ -6,77 +6,61 @@ By using this script, you agree to the terms of the repository license.
 Unauthorized commercial use or sharing is prohibited.
 */
 
-(function(){
+(function () {
     'use strict';
 
-    if(window.__gt_inj) return;
+    if (window.__gt_inj) return;
     window.__gt_inj = true;
 
     const DEBUG = true; // <--- DEBUG MODUNU AKTİF/PASİF YAPMAK İÇİN TRUE/FALSE YAPIN
     const ADMIN_ID = "12297030";
     let myId = null;
-    let ws = null;
-    let wsUrl = null; // <--- Ekledim: WebSocket URL'sini saklamak için
+    let ws = null; // Global WS referansı
     const logs = [];
     const maxLogs = 10;
     const users = new Map();
+    const OrigWS = window.WebSocket;
 
-    // 1. WebSocket Referansını Güvenli Al
-    let OrigWS;
-    try {
-        OrigWS = unsafeWindow.WebSocket || window.WebSocket;
-    } catch (e) {
-        OrigWS = window.WebSocket;
-    }
-
-    if (!OrigWS) {
-        if (DEBUG) console.error("[GT-DEBUG] Critical Error: Original WebSocket not found!");
-        return;
-    }
-
-    // 2. WebSocket'i Patch'le (Hook'la)
-    unsafeWindow.WebSocket = function(u, p) {
-        if (DEBUG) console.log("[GT-DEBUG] New WebSocket instance created. URL:", u);
-        wsUrl = u; // <--- Ekledim: URL'yi sakla
-        const w = new OrigWS(u, p);
-        ws = w;
-        unsafeWindow._gt_ws = w;
+    // WebSocket Patching (Hook)
+    window.WebSocket = function (url, protocols) {
+        if (DEBUG) console.log("[GT-DEBUG] Yeni WebSocket oluşturuluyor. URL:", url);
+        const w = new OrigWS(url, protocols);
+        ws = w; // Mevcut WS'yi sakla
 
         // --- DEBUG: Giden Paketleri Logla ---
         const originalSend = w.send;
         w.send = function(data) {
             if (DEBUG && typeof data === 'string' && data.startsWith('42')) {
-                console.log(`[GT-OUT] -> ${data}`);
+                 console.log(`[GT-OUT] -> ${data}`);
             }
             return originalSend.apply(this, arguments);
         };
 
-        w.addEventListener("message", function(e) {
+        w.addEventListener("message", function (e) {
             if (DEBUG && typeof e.data === 'string' && e.data.startsWith('42')) {
-                console.log(`[GT-IN]  <- ${e.data}`);
+                 console.log(`[GT-IN]  <- ${e.data}`);
             }
 
             try {
                 if (typeof e.data === "string") {
                     // --- 1. ID ve Kullanıcı Listesi Al (Odaya Giriş) ---
                     if (e.data.startsWith('42["5",')) {
-                        if (DEBUG) console.log("[GT-DEBUG] Received 42[\"5\",... ] packet:", e.data);
+                        if (DEBUG) console.log("[GT-DEBUG] 42[\"5\",... ] paketi alındı:", e.data);
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d.length > 2) {
                             myId = d[2];
-                            unsafeWindow._gt_id = myId;
-                            if (DEBUG) console.log("[GT-DEBUG] myId set to:", myId);
-                            updSts("Connected (ID Found)", "#0f0");
+                            if (DEBUG) console.log("[GT-DEBUG] myId set to:", myId); // Debug log
+                            updateStatus("Connected (ID Found)", "#0f0");
                         }
                         if (Array.isArray(d) && d.length >= 6 && Array.isArray(d[5])) {
                             users.clear();
                             d[5].forEach(x => {
                                 if (x.id && x.nick) {
                                     users.set(x.id, x.nick);
-                                    if (DEBUG) console.log(`[GT-DEBUG] User added: ${x.nick} (${x.id})`);
+                                    if (DEBUG) console.log(`[GT-DEBUG] Kullanıcı eklendi: ${x.nick} (${x.id})`);
                                 }
                             });
-                            rndUsr();
+                            renderUserList();
                         }
                     }
                     // --- 2. Yeni Kullanıcı ---
@@ -84,8 +68,8 @@ Unauthorized commercial use or sharing is prohibited.
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d[1] && d[1].id && d[1].nick) {
                             users.set(d[1].id, d[1].nick);
-                            if (DEBUG) console.log(`[GT-DEBUG] New user joined: ${d[1].nick} (${d[1].id})`);
-                            rndUsr();
+                            if (DEBUG) console.log(`[GT-DEBUG] Yeni kullanıcı katıldı: ${d[1].nick} (${d[1].id})`);
+                            renderUserList();
                         }
                     }
                     // --- 3. Ayrılan Kullanıcı ---
@@ -94,8 +78,8 @@ Unauthorized commercial use or sharing is prohibited.
                         if (Array.isArray(d) && d[1] && users.has(d[1])) {
                             const leftNick = users.get(d[1]);
                             users.delete(d[1]);
-                            if (DEBUG) console.log(`[GT-DEBUG] User left: ${leftNick} (${d[1]})`);
-                            rndUsr();
+                            if (DEBUG) console.log(`[GT-DEBUG] Kullanıcı ayrıldı: ${leftNick} (${d[1]})`);
+                            renderUserList();
                         }
                     }
                     // --- 4. Sohbet Mesajı ---
@@ -109,55 +93,48 @@ Unauthorized commercial use or sharing is prohibited.
                             else s = `U(${sid})`;
                         }
                         if (m) {
-                            if (DEBUG) console.log(`[GT-DEBUG] Chat message: [${s}] ${m}`);
+                            if (DEBUG) console.log(`[GT-DEBUG] Sohbet mesajı: [${s}] ${m}`);
                             addLog(s, m);
                         }
                     }
                 }
             } catch (err) {
-                if (DEBUG) console.error("[GT-DEBUG] Packet parsing error:", err, e.data);
+                if (DEBUG) console.error("[GT-DEBUG] Paket parse hatası:", err, e.data);
             }
         });
 
         w.addEventListener("open", () => {
-            if (DEBUG) console.log("[GT-DEBUG] WebSocket opened. URL:", wsUrl);
-            updSts("Connecting...", "#ff0");
+            if (DEBUG) console.log("[GT-DEBUG] WebSocket opened:", url); // Debug log
+            updateStatus("Connecting...", "#ff0");
         });
         w.addEventListener("close", () => {
-            if (DEBUG) console.log("[GT-DEBUG] WebSocket closed. URL:", wsUrl);
+            if (DEBUG) console.log("[GT-DEBUG] WebSocket closed"); // Debug log
             ws = null;
             myId = null; // Bağlantı kesildiğinde ID'yi sıfırla
-            unsafeWindow._gt_ws = null;
-            unsafeWindow._gt_id = null;
-            users.clear();
-            rndUsr();
-            updSts("Disconnected", "#f00");
+            updateStatus("Disconnected", "#f00");
         });
         w.addEventListener("error", (err) => {
-            if (DEBUG) console.error("[GT-DEBUG] WebSocket error:", err);
-            updSts("Error", "#f00");
+            if (DEBUG) console.error("[GT-DEBUG] WebSocket error:", err); // Debug log
+            updateStatus("Error", "#f00");
         });
 
         return w;
     };
 
-    // 3. Prototype ve Statik Özellikleri Ayarla
-    unsafeWindow.WebSocket.prototype = OrigWS.prototype;
-    unsafeWindow.WebSocket.CONNECTING = OrigWS.CONNECTING;
-    unsafeWindow.WebSocket.OPEN = OrigWS.OPEN;
-    unsafeWindow.WebSocket.CLOSING = OrigWS.CLOSING;
-    unsafeWindow.WebSocket.CLOSED = OrigWS.CLOSED;
+    window.WebSocket.prototype = OrigWS.prototype;
+    window.WebSocket.CONNECTING = OrigWS.CONNECTING;
+    window.WebSocket.OPEN = OrigWS.OPEN;
+    window.WebSocket.CLOSING = OrigWS.CLOSING;
+    window.WebSocket.CLOSED = OrigWS.CLOSED;
 
-    // 4. UI ve Yardımcı Fonksiyonlar (Değişmeden Kaldı)
-    function updSts(t, c) {
+    // --- UI ve Yardımcı Fonksiyonlar ---
+    function updateStatus(text, color) {
         const el = document.getElementById("gt-sts");
-        if (el) {
-            el.innerText = t;
-            el.style.color = c;
-        }
+        if (el) el.innerText = text;
+        if (el && color) el.style.color = color;
     }
 
-    function rndUsr() {
+    function renderUserList() {
         const el = document.getElementById("gt-ul");
         if (!el) return;
         el.innerHTML = "";
@@ -183,13 +160,13 @@ Unauthorized commercial use or sharing is prohibited.
         });
     }
 
-    function addLog(s, m) {
-        logs.push({ s, m, t: new Date().toLocaleTimeString() });
+    function addLog(sender, message) {
+        logs.push({ s: sender, m: message, t: new Date().toLocaleTimeString() });
         if (logs.length > maxLogs) logs.shift();
-        rndLog();
+        renderChatLog();
     }
 
-    function rndLog() {
+    function renderChatLog() {
         const el = document.getElementById("gt-cl");
         if (!el) return;
         el.innerHTML = "";
@@ -209,49 +186,65 @@ Unauthorized commercial use or sharing is prohibited.
         el.scrollTop = el.scrollHeight;
     }
 
-    function initUI() {
+    // --- UI Oluşturma ---
+    function createUI() {
+        if (document.getElementById('gt-ui')) return; // Zaten varsa iptal et
+
         const c = document.createElement("div");
         c.id = "gt-ui";
-        c.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:rgba(20,20,20,0.95);border:1px solid #444;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.6);font-family:Arial,sans-serif;z-index:99999;color:#fff;display:flex;flex-direction:column;overflow:hidden`;
+        c.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 380px; background: rgba(20, 20, 20, 0.95); border: 1px solid #444;
+            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); font-family: Arial, sans-serif;
+            z-index: 99999; color: #fff; display: flex; flex-direction: column; overflow: hidden;
+        `;
 
         const h = document.createElement("div");
-        h.style.cssText = `padding:12px;background:#2a2a2a;cursor:move;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #444;user-select:none`;
+        h.style.cssText = `padding: 12px; background: #2a2a2a; cursor: move; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; user-select: none;`;
         h.innerHTML = `<span style="font-weight:bold;font-size:14px">🎨 Gartic Tools</span><span id="gt-sts" style="font-size:12px;color:#aaa">Waiting...</span>`;
 
         const ct = document.createElement("div");
-        ct.style.cssText = `padding:10px;display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto`;
+        ct.style.cssText = `padding: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;`;
 
         const ulC = document.createElement("div");
-        ulC.style.cssText = `margin-bottom:5px`;
+        ulC.style.cssText = `margin-bottom: 5px;`;
         const ulT = document.createElement("div");
-        ulT.style.cssText = `font-size:12px;color:#888;margin-bottom:4px;font-weight:bold`;
+        ulT.style.cssText = `font-size: 12px; color: #888; margin-bottom: 4px; font-weight: bold;`;
         ulT.textContent = "PARTICIPANTS";
         const ulD = document.createElement("div");
         ulD.id = "gt-ul";
-        ulD.style.cssText = `display:flex;flex-wrap:wrap;gap:5px;font-size:11px`;
+        ulD.style.cssText = `display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px;`;
         ulC.appendChild(ulT);
         ulC.appendChild(ulD);
         ct.appendChild(ulC);
 
         const clD = document.createElement("div");
         clD.id = "gt-cl";
-        clD.style.cssText = `height:120px;overflow-y:auto;background:#111;border:1px solid #333;border-radius:4px;padding:8px;font-size:12px;display:flex;flex-direction:column;gap:4px`;
+        clD.style.cssText = `height: 120px; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 4px; padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;`;
+
         const st = document.createElement("style");
-        st.innerHTML = `#gt-cl::-webkit-scrollbar,#gt-ui::-webkit-scrollbar{width:6px}#gt-cl::-webkit-scrollbar-track,#gt-ui::-webkit-scrollbar-track{background:#222}#gt-cl::-webkit-scrollbar-thumb,#gt-ui::-webkit-scrollbar-thumb{background:#555;border-radius:3px}#gt-cl::-webkit-scrollbar-thumb:hover,#gt-ui::-webkit-scrollbar-thumb:hover{background:#777}`;
+        st.innerHTML = `
+            #gt-cl::-webkit-scrollbar, #gt-ui::-webkit-scrollbar { width: 6px; }
+            #gt-cl::-webkit-scrollbar-track, #gt-ui::-webkit-scrollbar-track { background: #222; }
+            #gt-cl::-webkit-scrollbar-thumb, #gt-ui::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+            #gt-cl::-webkit-scrollbar-thumb:hover, #gt-ui::-webkit-scrollbar-thumb:hover { background: #777; }
+        `;
         document.head.appendChild(st);
+
         ct.appendChild(clD);
 
         const ig = document.createElement("div");
-        ig.style.cssText = `display:flex;gap:8px;margin-top:5px`;
+        ig.style.cssText = `display: flex; gap: 8px; margin-top: 5px;`;
         const inp = document.createElement("input");
         inp.type = "text";
         inp.placeholder = "Type message...";
-        inp.style.cssText = `flex:1;padding:10px;border:1px solid #555;border-radius:4px;background:#1a1a1a;color:#fff;outline:none;font-size:14px`;
+        inp.style.cssText = `flex: 1; padding: 10px; border: 1px solid #555; border-radius: 4px; background: #1a1a1a; color: #fff; outline: none; font-size: 14px;`;
         const btn = document.createElement("button");
         btn.innerText = "Send";
-        btn.style.cssText = `padding:10px 15px;background:#007bff;border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:bold;font-size:14px;transition:background 0.2s`;
+        btn.style.cssText = `padding: 10px 15px; background: #007bff; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s;`;
         btn.onmouseover = () => btn.style.background = "#0056b3";
         btn.onmouseout = () => btn.style.background = "#007bff";
+
         ig.appendChild(inp);
         ig.appendChild(btn);
         ct.appendChild(ig);
@@ -260,7 +253,9 @@ Unauthorized commercial use or sharing is prohibited.
         c.appendChild(ct);
         document.body.appendChild(c);
 
-        let drag = false, ox, oy;
+        // --- Sürükleme ---
+        let drag = false;
+        let ox, oy;
         h.addEventListener("mousedown", e => {
             drag = true;
             const r = c.getBoundingClientRect();
@@ -273,6 +268,7 @@ Unauthorized commercial use or sharing is prohibited.
         document.addEventListener("mousemove", e => { if (drag) { c.style.left = `${e.clientX - ox}px`; c.style.top = `${e.clientY - oy}px`; } });
         document.addEventListener("mouseup", () => { drag = false; });
 
+        // --- Gönderme Mantığı ---
         const send = () => {
             const msg = inp.value.trim();
             if (!msg) return;
@@ -293,21 +289,16 @@ Unauthorized commercial use or sharing is prohibited.
 
         btn.addEventListener("click", send);
         inp.addEventListener("keypress", e => { if (e.key === "Enter") send(); });
-
-        // unsafeWindow üzerinden fonksiyonları tekrar bağla (Gerekirse)
-        unsafeWindow.updateStatus = updSts;
-        unsafeWindow.renderUserList = rndUsr;
-        unsafeWindow.addChatLog = addLog;
     }
 
-    // 5. UI'yi Oluştur
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initUI);
+    // UI'yi oluştur
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', createUI);
     } else {
-        initUI();
+        createUI();
     }
 
-    // 6. Başlangıç Logu
-    console.log("%c[GarticTools] Injected successfully. Version: v1.0.4. Debug Mode: " + (DEBUG ? "ON" : "OFF"), "color: #00ff88; font-weight: bold;");
+    // Konsol logu
+    console.log("%c[GarticTools] Injected. Version: v1.0.3. Debug Mode: " + (DEBUG ? "ON" : "OFF"), "color: #00ff88; font-weight: bold;");
 
 })();
