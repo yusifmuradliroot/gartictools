@@ -1,62 +1,76 @@
-(function() {
+(function () {
     'use strict';
 
-    if (window.__wsSnifferActive) return;
-    window.__wsSnifferActive = true;
+    // Prevent multiple injections
+    if (window.__wsLoggerInjected) return;
+    window.__wsLoggerInjected = true;
 
-    const OriginalWebSocket = window.WebSocket;
+    console.log("%c[WS-Logger] Starting WebSocket Logger...", "color: #00ff88; font-weight: bold;");
 
-    window.WebSocket = function(url, protocols) {
-        const wsInstance = new OriginalWebSocket(url, protocols);
+    const originalWebSocket = window.WebSocket;
 
-        const originalSend = wsInstance.send;
-        wsInstance.send = function(data) {
-            console.group("%c📤 Giden Veri", "color: #FF9800;");
-            console.log("Zaman:", new Date().toLocaleTimeString());
-            if (typeof data === 'string') {
-                try {
-                    console.log("Tip: JSON", JSON.parse(data));
-                } catch (e) {
-                    console.log("Tip: Text", data);
-                }
-            } else {
-                console.log("Tip: Binary", data);
-            }
-            console.groupEnd();
-            return originalSend.apply(this, arguments);
-        };
+    // Styles
+    const STYLE_IN = 'color: #00ff88; font-weight: bold';
+    const STYLE_OUT = 'color: #ffaa00; font-weight: bold';
+    const STYLE_URL = 'color: #64b5f6; font-weight: bold';
+    const STYLE_DRAW = 'color: #bb86fc; font-style: italic';
+    const STYLE_CHAT = 'color: #03dac6';
 
-        const originalAddEventListener = wsInstance.addEventListener;
-        wsInstance.addEventListener = function(type, listener, options) {
-            if (type === 'message') {
-                const wrappedListener = function(event) {
-                    console.group("%c📥 Gelen Veri", "color: #4CAF50;");
-                    console.log("Zaman:", new Date().toLocaleTimeString());
-                    const data = event.data;
-                    if (typeof data === 'string') {
-                        try {
-                            console.log("Tip: JSON", JSON.parse(data));
-                        } catch (e) {
-                            console.log("Tip: Text", data);
-                        }
+    window.WebSocket = class extends originalWebSocket {
+        constructor(url, protocols) {
+            super(url, protocols);
+
+            console.log('%c🔗 [URL] ' + url, STYLE_URL);
+
+            // Intercept Send
+            const originalSend = this.send;
+            this.send = function(...args) {
+                const data = args[0];
+
+                if (typeof data === 'string') {
+                    if (data.startsWith('42["chat"')) {
+                        console.log('%c📤 [CHAT OUT] ' + data, STYLE_CHAT);
+                    } else if (data.startsWith('42["draw"')) {
+                        console.log('%c📤 [DRAW OUT] ' + data.slice(0, 80) + '...', STYLE_DRAW);
                     } else {
-                        console.log("Tip: Binary", data);
+                        console.log('%c📤 [OUT] ' + data, STYLE_OUT);
                     }
-                    console.groupEnd();
-                    listener.call(this, event);
-                };
-                return originalAddEventListener.call(this, type, wrappedListener, options);
-            }
-            return originalAddEventListener.call(this, type, listener, options);
-        };
+                } else {
+                    console.log('%c📤 [BINARY OUT] size=' + (data?.size || data?.length || 0), STYLE_OUT);
+                }
 
-        return wsInstance;
+                return originalSend.apply(this, args);
+            };
+
+            // Intercept Message
+            this.addEventListener('message', (event) => {
+                const data = event.data;
+
+                if (typeof data === 'string') {
+                    if (data.startsWith('42["chat"')) {
+                        console.log('%c📥 [CHAT IN ] ' + data, STYLE_CHAT);
+                    } else if (data.startsWith('42["draw"')) {
+                        console.log('%c📥 [DRAW IN ] ' + data.slice(0, 80) + '...', STYLE_DRAW);
+                    } else if (data.startsWith('42[')) {
+                        console.log('%c📥 [EVENT IN] ' + data, STYLE_IN);
+                    } else {
+                        console.log('%c📥 [RAW IN ] ' + data, STYLE_IN);
+                    }
+                } else {
+                    console.log('%c📥 [BINARY IN] size=' + (data?.size || data?.length || 0), STYLE_IN);
+                }
+            });
+
+            // Intercept Close/Error
+            this.addEventListener('close', (e) => {
+                console.log(`%c❌ [CLOSED] code=${e.code}`, 'color: #cf6679');
+            });
+
+            this.addEventListener('error', () => {
+                console.log('%c⚠️ [ERROR] WebSocket error occurred', 'color: #ff3333');
+            });
+        }
     };
 
-    window.WebSocket.prototype = OriginalWebSocket.prototype;
-    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
-    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
-    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
-    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
-
+    console.log("%c[WS-Logger] WebSocket patched successfully.", "color: #00ff88;");
 })();
