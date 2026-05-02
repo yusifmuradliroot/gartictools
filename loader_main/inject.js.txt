@@ -40,72 +40,78 @@
     window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
     window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
 
-    // 2. UI Oluşturma
+    // 2. UI Oluşturma (Ortalanmış)
     function createUI() {
         const container = document.createElement('div');
         container.id = 'gartic-tools-ui';
+        // Tam orta konumlandırma için CSS
         container.style.cssText = `
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 300px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
             background: rgba(20, 20, 20, 0.95);
             border: 1px solid #444;
             border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             font-family: Arial, sans-serif;
             z-index: 99999;
             color: white;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         `;
 
         // Header (Sürükleme Alanı)
         const header = document.createElement('div');
         header.style.cssText = `
-            padding: 10px;
-            background: #333;
+            padding: 12px;
+            background: #2a2a2a;
             cursor: move;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #444;
+            user-select: none;
         `;
-        header.innerHTML = `<span style="font-weight:bold; font-size:14px;">🎨 Gartic Tools</span><span id="gt-status" style="font-size:12px; color:#aaa;">Bekleniyor...</span>`;
+        header.innerHTML = `<span style="font-weight:bold; font-size:14px;">🎨 Gartic Chat</span><span id="gt-status" style="font-size:12px; color:#aaa;">Bekleniyor...</span>`;
         
         // Content
         const content = document.createElement('div');
-        content.style.cssText = `padding: 10px;`;
+        content.style.cssText = `padding: 15px;`;
 
         // Input Area
         const inputGroup = document.createElement('div');
-        inputGroup.style.cssText = `display: flex; gap: 5px; margin-top: 5px;`;
+        inputGroup.style.cssText = `display: flex; gap: 8px; margin-top: 5px;`;
 
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'Mesajınızı yazın...';
         input.style.cssText = `
             flex: 1;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #555;
             border-radius: 4px;
-            background: #222;
+            background: #1a1a1a;
             color: white;
             outline: none;
+            font-size: 14px;
         `;
 
         const btn = document.createElement('button');
         btn.innerText = 'Gönder';
         btn.style.cssText = `
-            padding: 8px 12px;
+            padding: 10px 15px;
             background: #007bff;
             border: none;
             border-radius: 4px;
             color: white;
             cursor: pointer;
             font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
         `;
         btn.onmouseover = () => btn.style.background = '#0056b3';
         btn.onmouseout = () => btn.style.background = '#007bff';
@@ -123,16 +129,25 @@
 
         header.addEventListener('mousedown', (e) => {
             isDragging = true;
-            offsetX = e.clientX - container.getBoundingClientRect().left;
-            offsetY = e.clientY - container.getBoundingClientRect().top;
+            // Transform etkisini sıfırlamak için offset'i hesaplarken dikkatli olmalıyız
+            // Ancak basit yöntem: mouse pozisyonundan elementin mevcut pozisyonunu çıkar
+            
+            const rect = container.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            
+            // Sürüklemeye başlarken transform'u kaldırıp absolute/top/left'e geçiş yapabiliriz
+            // veya sadece left/top'u güncelleyebiliriz. 
+            // En kolayı: transform'u kaldırıp left/top ile devam etmek.
+            container.style.transform = 'none';
+            container.style.top = rect.top + 'px';
+            container.style.left = rect.left + 'px';
         });
 
         document.addEventListener('mousemove', (e) => {
             if (isDragging) {
                 container.style.left = `${e.clientX - offsetX}px`;
                 container.style.top = `${e.clientY - offsetY}px`;
-                container.style.bottom = 'auto';
-                container.style.right = 'auto';
             }
         });
 
@@ -182,69 +197,4 @@
         createUI();
     }
 
-})();(function() {
-    'use strict';
-
-    if (window.__garticChatInjected) return;
-    window.__garticChatInjected = true;
-
-    let myWsId = null;
-    let activeWs = null;
-    const OriginalWebSocket = window.WebSocket;
-
-    // WebSocket constructor'ını güvenli şekilde patch'le
-    window.WebSocket = function(url, protocols) {
-        const ws = new OriginalWebSocket(url, protocols);
-        activeWs = ws;
-
-        ws.addEventListener('message', function(event) {
-            try {
-                if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
-                    const jsonStr = event.data.slice(2);
-                    const data = JSON.parse(jsonStr);
-                    if (Array.isArray(data) && data.length > 2) {
-                        myWsId = data[2];
-                        console.log('[GarticChat] WebSocket ID yakalandı:', myWsId);
-                    }
-                }
-            } catch (e) {}
-        });
-
-        return ws;
-    };
-
-    // Prototype ve statik özellikleri koru
-    window.WebSocket.prototype = OriginalWebSocket.prototype;
-    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
-    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
-    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
-    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
-
-    // Ana fonksiyon
-    function garticchat(message) {
-        if (typeof message !== 'string') {
-            console.error('[GarticChat] Hata: Mesaj bir metin (string) olmalıdır.');
-            return;
-        }
-        if (!myWsId) {
-            console.error('[GarticChat] Hata: WebSocket ID henüz alınmadı. Lütfen odaya girin.');
-            return;
-        }
-        if (!activeWs || activeWs.readyState !== WebSocket.OPEN) {
-            console.error('[GarticChat] Hata: Aktif WebSocket bağlantısı bulunamadı.');
-            return;
-        }
-
-        const packet = `42["11","${myWsId}","${message}"]`;
-        activeWs.send(packet);
-        console.log(`[GarticChat] Gönderildi: ${message}`);
-    }
-
-    // Global pencereye doğrudan bağla
-    window.garticchat = garticchat;
-    if (typeof unsafeWindow !== 'undefined') {
-        unsafeWindow.garticchat = garticchat;
-    }
-
-    console.log('%c[GarticChat] Hazır! Konsola garticchat("mesaj") yazabilirsiniz.', 'color: #00ff88; font-weight: bold;');
 })();
