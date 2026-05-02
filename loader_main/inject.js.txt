@@ -1,71 +1,66 @@
 (function() {
     'use strict';
 
-    if (window.__GarticSenderInjected) return;
-    window.__GarticSenderInjected = true;
+    if (window.__garticChatInjected) return;
+    window.__garticChatInjected = true;
 
-    let myWebSocketId = null;
-    let activeWsInstance = null;
-    const originalWebSocket = window.WebSocket;
+    let myWsId = null;
+    let activeWs = null;
+    const OriginalWebSocket = window.WebSocket;
 
-    // WebSocket sınıfını patch'le
-    window.WebSocket = class extends originalWebSocket {
-        constructor(url) {
-            super(url);
-            activeWsInstance = this; // En son açılan bağlantıyı takip et
+    // WebSocket constructor'ını güvenli şekilde patch'le
+    window.WebSocket = function(url, protocols) {
+        const ws = new OriginalWebSocket(url, protocols);
+        activeWs = ws;
 
-            // ID yakalama
-            this.addEventListener('message', function(event) {
-                try {
-                    if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
-                        const jsonStr = event.data.substring(2);
-                        const parts = JSON.parse(jsonStr);
-                        if (parts && parts.length > 2) {
-                            myWebSocketId = parts[2];
-                            console.log('[GarticTools] mywebsocketid alındı:', myWebSocketId);
-                        }
+        ws.addEventListener('message', function(event) {
+            try {
+                if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
+                    const jsonStr = event.data.slice(2);
+                    const data = JSON.parse(jsonStr);
+                    if (Array.isArray(data) && data.length > 2) {
+                        myWsId = data[2];
+                        console.log('[GarticChat] WebSocket ID yakalandı:', myWsId);
                     }
-                } catch (e) {}
-            });
+                }
+            } catch (e) {}
+        });
 
-            // Orijinal send'i koru
-            const originalSend = this.send;
-            this.send = function(data) {
-                return originalSend.apply(this, arguments);
-            };
-        }
+        return ws;
     };
 
-    window.WebSocket.prototype = originalWebSocket.prototype;
-    Object.assign(window.WebSocket, originalWebSocket);
+    // Prototype ve statik özellikleri koru
+    window.WebSocket.prototype = OriginalWebSocket.prototype;
+    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
 
-    // Mesaj gönderme fonksiyonu
-    const sendFunction = function(message) {
-        if (!myWebSocketId) {
-            console.error('[GarticTools HATA] mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
-            return;
-        }
+    // Ana fonksiyon
+    function garticchat(message) {
         if (typeof message !== 'string') {
-            console.error('[GarticTools HATA] Mesaj bir metin olmalıdır.');
+            console.error('[GarticChat] Hata: Mesaj bir metin (string) olmalıdır.');
             return;
         }
-        if (!activeWsInstance || activeWsInstance.readyState !== WebSocket.OPEN) {
-            console.error('[GarticTools HATA] Aktif WebSocket bağlantısı bulunamadı.');
+        if (!myWsId) {
+            console.error('[GarticChat] Hata: WebSocket ID henüz alınmadı. Lütfen odaya girin.');
+            return;
+        }
+        if (!activeWs || activeWs.readyState !== WebSocket.OPEN) {
+            console.error('[GarticChat] Hata: Aktif WebSocket bağlantısı bulunamadı.');
             return;
         }
 
-        const packet = `42["11","${myWebSocketId}","${message}"]`;
-        activeWsInstance.send(packet);
-        console.log(`[GarticTools] Gönderildi: ${message}`);
-    };
-
-    // 🔥 GLOBAL KAPSAMA ZORLA EKLE
-    window.gsend = sendFunction;
-    if (typeof unsafeWindow !== 'undefined') {
-        unsafeWindow.gsend = sendFunction;
+        const packet = `42["11","${myWsId}","${message}"]`;
+        activeWs.send(packet);
+        console.log(`[GarticChat] Gönderildi: ${message}`);
     }
 
-    // Doğrulama logu
-    console.log('%c[GarticTools] Hazır! Konsola gsend("mesaj") yazabilirsiniz.', 'color: #00ff88; font-weight: bold;');
-    console.log('[GarticTools] gsend tanımlı mı?', typeof window.gsend);
+    // Global pencereye doğrudan bağla
+    window.garticchat = garticchat;
+    if (typeof unsafeWindow !== 'undefined') {
+        unsafeWindow.garticchat = garticchat;
+    }
+
+    console.log('%c[GarticChat] Hazır! Konsola garticchat("mesaj") yazabilirsiniz.', 'color: #00ff88; font-weight: bold;');
 })();
