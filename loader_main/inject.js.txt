@@ -10,30 +10,70 @@
 
     // 1. WebSocket Patching & ID Yakalama
     window.WebSocket = function(url, protocols) {
+        console.log('[GarticTools] Yeni WebSocket bağlantısı tespit edildi:', url);
         const ws = new OriginalWebSocket(url, protocols);
+        
+        // Aktif WS'i global olarak tut (Debug için)
         activeWs = ws;
+        window._gt_ws = ws; 
 
         ws.addEventListener('message', function(event) {
             try {
-                if (typeof event.data === 'string' && event.data.startsWith('42["5",')) {
-                    const jsonStr = event.data.slice(2);
-                    const data = JSON.parse(jsonStr);
-                    if (Array.isArray(data) && data.length > 2) {
-                        myWsId = data[2];
-                        updateStatus("Bağlı", "#00ff88");
+                if (typeof event.data === 'string') {
+                    // Yöntem 1: Standart "42["5",..." paketi
+                    if (event.data.startsWith('42["5",')) {
+                        const jsonStr = event.data.slice(2);
+                        const data = JSON.parse(jsonStr);
+                        if (Array.isArray(data) && data.length > 2) {
+                            myWsId = data[2];
+                            window._gt_id = myWsId;
+                            updateStatus("Bağlı (ID Alındı)", "#00ff88");
+                            console.log('[GarticTools] WebSocket ID yakalandı:', myWsId);
+                        }
+                    } 
+                    // Yöntem 2: Alternatif paket yapısı kontrolü (Güvenlik ağı)
+                    else if (event.data.includes('"criador"') || event.data.includes('"idioma"')) {
+                         try {
+                             const jsonStr = event.data.slice(2);
+                             const data = JSON.parse(jsonStr);
+                             // Genellikle bu tip büyük paketlerde ID 3. elemandır veya içinde geçer
+                             if (Array.isArray(data) && data.length > 2 && typeof data[2] === 'number') {
+                                 myWsId = data[2];
+                                 window._gt_id = myWsId;
+                                 updateStatus("Bağlı (ID Alındı)", "#00ff88");
+                                 console.log('[GarticTools] Alternatif yöntemle ID yakalandı:', myWsId);
+                             }
+                         } catch(e) {}
                     }
                 }
-            } catch (e) {}
+            } catch (e) {
+                // Hataları sessizce yut
+            }
+        });
+
+        ws.addEventListener('open', () => {
+            console.log('[GarticTools] WebSocket bağlantısı açıldı.');
+            updateStatus("Bağlanıyor...", "#ffff00");
         });
 
         ws.addEventListener('close', () => {
+            console.log('[GarticTools] WebSocket bağlantısı kapandı.');
             activeWs = null;
+            myWsId = null;
+            window._gt_ws = null;
+            window._gt_id = null;
             updateStatus("Bağlantı Koptu", "#ff3333");
+        });
+
+        ws.addEventListener('error', (err) => {
+            console.error('[GarticTools] WebSocket hatası:', err);
+            updateStatus("Hata", "#ff3333");
         });
 
         return ws;
     };
 
+    // Prototype ve statik özellikleri koru
     window.WebSocket.prototype = OriginalWebSocket.prototype;
     window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
     window.WebSocket.OPEN = OriginalWebSocket.OPEN;
@@ -44,7 +84,6 @@
     function createUI() {
         const container = document.createElement('div');
         container.id = 'gartic-tools-ui';
-        // Tam orta konumlandırma için CSS
         container.style.cssText = `
             position: fixed;
             top: 50%;
@@ -64,7 +103,7 @@
             transition: all 0.2s ease;
         `;
 
-        // Header (Sürükleme Alanı)
+        // Header
         const header = document.createElement('div');
         header.style.cssText = `
             padding: 12px;
@@ -129,16 +168,9 @@
 
         header.addEventListener('mousedown', (e) => {
             isDragging = true;
-            // Transform etkisini sıfırlamak için offset'i hesaplarken dikkatli olmalıyız
-            // Ancak basit yöntem: mouse pozisyonundan elementin mevcut pozisyonunu çıkar
-            
             const rect = container.getBoundingClientRect();
             offsetX = e.clientX - rect.left;
             offsetY = e.clientY - rect.top;
-            
-            // Sürüklemeye başlarken transform'u kaldırıp absolute/top/left'e geçiş yapabiliriz
-            // veya sadece left/top'u güncelleyebiliriz. 
-            // En kolayı: transform'u kaldırıp left/top ile devam etmek.
             container.style.transform = 'none';
             container.style.top = rect.top + 'px';
             container.style.left = rect.left + 'px';
@@ -161,17 +193,19 @@
             if (!msg) return;
             
             if (!myWsId) {
-                alert('Hata: WebSocket ID henüz alınmadı. Lütfen odaya girin.');
+                alert('Hata: WebSocket ID henüz alınmadı. Lütfen odaya girin ve bekleyin.');
+                console.warn('[GarticTools] myWsId boş. Mevcut ID:', window._gt_id);
                 return;
             }
             if (!activeWs || activeWs.readyState !== WebSocket.OPEN) {
-                alert('Hata: Aktif bağlantı yok.');
+                alert('Hata: Aktif WebSocket bağlantısı bulunamadı veya açık değil.');
                 return;
             }
 
             const packet = `42["11","${myWsId}","${msg}"]`;
+            console.log('[GarticTools] Paket gönderiliyor:', packet);
             activeWs.send(packet);
-            input.value = ''; // Kutuyu temizle
+            input.value = ''; 
             input.focus();
         };
 
