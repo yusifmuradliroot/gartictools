@@ -1,70 +1,95 @@
-(function () {
+(function() {
     'use strict';
 
-    if (window.__wsLoggerInjected) return;
-    window.__wsLoggerInjected = true;
+    if (window.__stealthLoggerInjected) return;
+    window.__stealthLoggerInjected = true;
 
-    console.log("%c[WS-Logger] Initializing...", "color: #00ff88; font-weight: bold;");
-
+    let myWebSocketId = null;
     const originalWebSocket = window.WebSocket;
 
-    const STYLE_IN = 'color: #00ff88; font-weight: bold';
-    const STYLE_OUT = 'color: #ffaa00; font-weight: bold';
-    const STYLE_URL = 'color: #64b5f6; font-weight: bold';
-    const STYLE_DRAW = 'color: #bb86fc; font-style: italic';
-    const STYLE_CHAT = 'color: #03dac6';
-
+    // WebSocket sınıfını sarmalıyoruz
     window.WebSocket = class extends originalWebSocket {
-        constructor(url, protocols) {
-            super(url, protocols);
-            console.log('%c🔗 [URL] ' + url, STYLE_URL);
+        constructor(url) {
+            super(url);
 
+            // Websocket bağlantısı kurulduğunda gelen "init" mesajını dinle
+            this.addEventListener('message', function(event) {
+                try {
+                    // Sadece string mesajları işle
+                    if (typeof event.data === 'string') {
+                        // Mesajın "42[\"5\",..." ile başlayıp başlamadığını kontrol et
+                        if (event.data.startsWith('42["5",')) {
+                            // JSON.parse ile ayrıştır
+                            const parts = JSON.parse(event.data.replace(/^42/, ''));
+                            // Üçüncü parametre (index 2) mywebsocketid'dir
+                            if (parts && parts.length > 2) {
+                                myWebSocketId = parts[2];
+                                console.log('[StealthLogger] mywebsocketid bulundu:', myWebSocketId);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Hatalar sessizce göz ardı edilir
+                }
+            });
+
+            // Orijinal send fonksiyonunu sakla
             const originalSend = this.send;
-            this.send = function(...args) {
-                const data = args[0];
-                if (typeof data === 'string') {
-                    if (data.startsWith('42["chat"')) {
-                        console.log('%c📤 [CHAT OUT] ' + data, STYLE_CHAT);
-                    } else if (data.startsWith('42["draw"')) {
-                        console.log('%c📤 [DRAW OUT] ' + data.slice(0, 80) + '...', STYLE_DRAW);
-                    } else {
-                        console.log('%c📤 [OUT] ' + data, STYLE_OUT);
-                    }
-                } else {
-                    console.log('%c📤 [BINARY OUT] size=' + (data?.size || data?.length || 0), STYLE_OUT);
-                }
-                return originalSend.apply(this, args);
+            this.send = function(data) {
+                return originalSend.apply(this, arguments);
             };
-
-            this.addEventListener('message', (event) => {
-                const data = event.data;
-                if (typeof data === 'string') {
-                    if (data.startsWith('42["chat"')) {
-                        console.log('%c📥 [CHAT IN ] ' + data, STYLE_CHAT);
-                    } else if (data.startsWith('42["draw"')) {
-                        console.log('%c📥 [DRAW IN ] ' + data.slice(0, 80) + '...', STYLE_DRAW);
-                    } else if (data.startsWith('42[')) {
-                        console.log('%c📥 [EVENT IN] ' + data, STYLE_IN);
-                    } else {
-                        console.log('%c📥 [RAW IN ] ' + data, STYLE_IN);
-                    }
-                } else {
-                    console.log('%c📥 [BINARY IN] size=' + (data?.size || data?.length || 0), STYLE_IN);
-                }
-            });
-
-            this.addEventListener('close', (e) => {
-                console.log(`%c❌ [CLOSED] code=${e.code}`, 'color: #cf6679');
-            });
-
-            this.addEventListener('error', () => {
-                console.log('%c⚠️ [ERROR] WebSocket error occurred', 'color: #ff3333');
-            });
         }
     };
 
-    window.WebSocket.prototype = originalWebSocket.prototype;
-    Object.assign(window.WebSocket, originalWebSocket);
+    // Konsol komutunu tanımla: garticchat(send("mesaj"))
+    window.garticchat = function(callback) {
+        if (typeof callback !== 'function') {
+            console.error('Kullanım: garticchat(send("mesajınız"))');
+            return;
+        }
 
-    console.log("%c[WS-Logger] WebSocket successfully patched.", "color: #00ff88;");
+        if (!myWebSocketId) {
+            console.error('Hata: mywebsocketid henüz alınmadı. Lütfen odaya bağlanın.');
+            return;
+        }
+
+        // Callback'ten gerçek mesajı al (örneğin: send("merhaba"))
+        const message = callback();
+        if (!message || typeof message !== 'string') {
+            console.error('Geçersiz mesaj.');
+            return;
+        }
+
+        // Özel formatlı mesajı oluştur
+        const packet = `42["11","${myWebSocketId}","${message}"]`;
+        
+        // Tüm açık WebSocket bağlantılarında dene
+        for (const ws of window.__wsInstances || []) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(packet);
+                console.log(`[GarticChat] Mesaj gönderildi: ${message}`);
+                break;
+            }
+        }
+    };
+
+    // Kolaylık için send fonksiyonunu dışa aktar
+    window.send = function(text) { return text; };
+
+    // Açık WebSocket örneklerini takip et (send için)
+    const instances = [];
+    const originalWS = window.WebSocket;
+    window.WebSocket = function(...args) {
+        const instance = new originalWS(...args);
+        instances.push(instance);
+        instance.addEventListener('close', () => {
+            const index = instances.indexOf(instance);
+            if (index !== -1) instances.splice(index, 1);
+        });
+        return instance;
+    };
+    window.__wsInstances = instances;
+    window.WebSocket.prototype = originalWS.prototype;
+    Object.assign(window.WebSocket, originalWS);
+
 })();
