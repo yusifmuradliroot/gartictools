@@ -8,9 +8,10 @@
     let activeWs = null;
     const chatLog = []; // Son 10 mesajı tutacak dizi
     const MAX_LOGS = 10;
+    const usersList = new Map(); // Kullanıcıları ID -> Nick şeklinde tutar
     const OriginalWebSocket = window.WebSocket;
 
-    // 1. WebSocket Patching & ID Yakalama & Chat Loglama
+    // 1. WebSocket Patching & Veri Yakalama
     window.WebSocket = function(url, protocols) {
         console.log('[GarticTools] Yeni WebSocket bağlantısı tespit edildi:', url);
         const ws = new OriginalWebSocket(url, protocols);
@@ -21,19 +22,65 @@
         ws.addEventListener('message', function(event) {
             try {
                 if (typeof event.data === 'string') {
-                    // --- ID YAKALAMA (Odaya Giriş Paketi: 42["5",...) ---
+                    
+                    // --- ODAYA GİRİŞ / BAŞLANGIÇ PAKETİ: 42["5", ...] ---
                     if (event.data.startsWith('42["5",')) {
                         const jsonStr = event.data.slice(2);
                         const data = JSON.parse(jsonStr);
+                        
+                        // Kendi ID'mizi al (Genelde 3. eleman: index 2)
                         if (Array.isArray(data) && data.length > 2) {
                             myWsId = data[2];
                             window._gt_id = myWsId;
                             updateStatus("Bağlı (ID Alındı)", "#00ff88");
-                            console.log('[GarticTools] WebSocket ID yakalandı:', myWsId);
+                            console.log('[GarticTools] Benim ID\'m:', myWsId);
+                        }
+
+                        // Odadaki kullanıcıları listele (Genelde son elemandan önceki array)
+                        // Paket yapısı: ["5", creatorId, myId, roomCode, settings, [users], false]
+                        if (Array.isArray(data) && data.length >= 6 && Array.isArray(data[5])) {
+                            const users = data[5];
+                            usersList.clear();
+                            users.forEach(user => {
+                                if (user.id && user.nick) {
+                                    usersList.set(user.id, user.nick);
+                                }
+                            });
+                            renderUserList();
+                            console.log('[GarticTools] Kullanıcı listesi güncellendi:', usersList.size, 'kişi');
                         }
                     } 
                     
-                    // --- CHAT MESAJI YAKALAMA (Genel Sohbet: 42["11",...) ---
+                    // --- YENİ KULLANICI GELDİ: 42["23", {userObj}, null] ---
+                    else if (event.data.startsWith('42["23",')) {
+                        const jsonStr = event.data.slice(2);
+                        const data = JSON.parse(jsonStr);
+                        if (Array.isArray(data) && data.length >= 2 && typeof data[1] === 'object') {
+                            const newUser = data[1];
+                            if (newUser.id && newUser.nick) {
+                                usersList.set(newUser.id, newUser.nick);
+                                renderUserList();
+                                console.log(`[GarticTools] Yeni gelen: ${newUser.nick}`);
+                            }
+                        }
+                    }
+
+                    // --- KULLANICI AYRILDI: 42["24", "userId", null] ---
+                    else if (event.data.startsWith('42["24",')) {
+                        const jsonStr = event.data.slice(2);
+                        const data = JSON.parse(jsonStr);
+                        if (Array.isArray(data) && data.length >= 2) {
+                            const leftUserId = data[1];
+                            if (usersList.has(leftUserId)) {
+                                const nick = usersList.get(leftUserId);
+                                usersList.delete(leftUserId);
+                                renderUserList();
+                                console.log(`[GarticTools] Ayrılan: ${nick} (${leftUserId})`);
+                            }
+                        }
+                    }
+
+                    // --- CHAT MESAJI: 42["11", ...] ---
                     else if (event.data.startsWith('42["11",')) {
                         try {
                             const jsonStr = event.data.slice(2);
@@ -42,42 +89,26 @@
                             let sender = "Bilinmiyor";
                             let message = "";
                             
-                            // Gartic.io 42["11", ...] paketi yapısı analizi
-                            // Genellikle: ["11", "SenderNick", "MessageContent", ...]
-                            // Veya bazen: ["11", {id:..., nick:...}, "Message"]
-                            
-                            if (Array.isArray(data)) {
-                                // Durum 1: ["11", "Nick", "Mesaj"]
-                                if (data.length >= 3 && typeof data[1] === 'string') {
-                                    sender = data[1];
-                                    message = data[2];
-                                } 
-                                // Durum 2: ["11", {obj}, "Mesaj"] veya benzeri varyasyonlar
-                                else if (data.length >= 3 && typeof data[1] === 'object' && data[1].nick) {
-                                    sender = data[1].nick;
-                                    message = data[2];
-                                }
-                                // Durum 3: Daha karmaşık yapılar için fallback
-                                else if (data.length >= 2) {
-                                     // Bazen mesaj 2. indexte olabilir, sender 1. indexte obje olabilir
-                                     if (typeof data[1] === 'string') {
-                                         sender = data[1];
-                                         message = data[2] || "";
-                                     } else if (typeof data[1] === 'object' && data[1].nick) {
-                                         sender = data[1].nick;
-                                         message = data[2] || "";
-                                     }
+                            // Format: ["11", "SenderId", "Message"] veya ["11", {obj}, "Message"]
+                            // Genellikle 2. eleman ID'dir. ID'den Nick'i bulacağız.
+                            if (Array.isArray(data) && data.length >= 3) {
+                                const senderId = data[1];
+                                message = data[2];
+                                
+                                // ID'den Nick'i bul
+                                if (usersList.has(senderId)) {
+                                    sender = usersList.get(senderId);
+                                } else {
+                                    // Eğer listede yoksa (örn: bot veya eski veri), ID'yi göster
+                                    sender = `User(${senderId})`;
                                 }
                             }
 
-                            if (message && sender !== "Bilinmiyor") {
+                            if (message) {
                                 addChatLog(sender, message);
-                            } else if (message) {
-                                // Sender bulunamadıysa bile mesajı logla (opsiyonel)
-                                addChatLog("Anonim", message);
                             }
                         } catch (e) {
-                            console.warn("[GarticTools] Chat parse hatası:", e, event.data);
+                            console.warn("[GarticTools] Chat parse hatası:", e);
                         }
                     }
                 }
@@ -93,6 +124,8 @@
             myWsId = null;
             window._gt_ws = null;
             window._gt_id = null;
+            usersList.clear();
+            renderUserList();
             updateStatus("Bağlantı Koptu", "#ff3333");
         });
 
@@ -109,7 +142,7 @@
     window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
     window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
 
-    // 2. UI Oluşturma (Ortalanmış + Chat Log)
+    // 2. UI Oluşturma (Ortalanmış + Chat Log + User List)
     function createUI() {
         const container = document.createElement('div');
         container.id = 'gartic-tools-ui';
@@ -118,7 +151,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 350px;
+            width: 380px;
             background: rgba(20, 20, 20, 0.95);
             border: 1px solid #444;
             border-radius: 8px;
@@ -144,17 +177,38 @@
             border-bottom: 1px solid #444;
             user-select: none;
         `;
-        header.innerHTML = `<span style="font-weight:bold; font-size:14px;">🎨 Gartic Chat</span><span id="gt-status" style="font-size:12px; color:#aaa;">Bekleniyor...</span>`;
+        header.innerHTML = `<span style="font-weight:bold; font-size:14px;">🎨 Gartic Tools</span><span id="gt-status" style="font-size:12px; color:#aaa;">Bekleniyor...</span>`;
         
         // Content Area
         const content = document.createElement('div');
-        content.style.cssText = `padding: 10px; display: flex; flex-direction: column; gap: 10px;`;
+        content.style.cssText = `padding: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;`;
+
+        // --- KULLANICI LİSTESİ ---
+        const userListContainer = document.createElement('div');
+        userListContainer.style.cssText = `margin-bottom: 5px;`;
+        
+        const userListTitle = document.createElement('div');
+        userListTitle.style.cssText = `font-size: 12px; color: #888; margin-bottom: 4px; font-weight: bold;`;
+        userListTitle.textContent = 'KATILIMCILAR';
+        
+        const userListDiv = document.createElement('div');
+        userListDiv.id = 'gt-user-list';
+        userListDiv.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            font-size: 11px;
+        `;
+        
+        userListContainer.appendChild(userListTitle);
+        userListContainer.appendChild(userListDiv);
+        content.appendChild(userListContainer);
 
         // --- CHAT LOG ALANI ---
         const logContainer = document.createElement('div');
         logContainer.id = 'gt-chat-log';
         logContainer.style.cssText = `
-            height: 150px;
+            height: 120px;
             overflow-y: auto;
             background: #111;
             border: 1px solid #333;
@@ -168,10 +222,10 @@
         // Scrollbar stili
         const style = document.createElement('style');
         style.innerHTML = `
-            #gt-chat-log::-webkit-scrollbar { width: 6px; }
-            #gt-chat-log::-webkit-scrollbar-track { background: #222; }
-            #gt-chat-log::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
-            #gt-chat-log::-webkit-scrollbar-thumb:hover { background: #777; }
+            #gt-chat-log::-webkit-scrollbar, #gartic-tools-ui::-webkit-scrollbar { width: 6px; }
+            #gt-chat-log::-webkit-scrollbar-track, #gartic-tools-ui::-webkit-scrollbar-track { background: #222; }
+            #gt-chat-log::-webkit-scrollbar-thumb, #gartic-tools-ui::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+            #gt-chat-log::-webkit-scrollbar-thumb:hover, #gartic-tools-ui::-webkit-scrollbar-thumb:hover { background: #777; }
         `;
         document.head.appendChild(style);
 
@@ -179,7 +233,7 @@
 
         // Input Area
         const inputGroup = document.createElement('div');
-        inputGroup.style.cssText = `display: flex; gap: 8px;`;
+        inputGroup.style.cssText = `display: flex; gap: 8px; margin-top: 5px;`;
 
         const input = document.createElement('input');
         input.type = 'text';
@@ -258,7 +312,6 @@
                 return;
             }
 
-            // Gartic.io genel sohbet gönderim formatı: 42["11","ID","MESAJ"]
             const packet = `42["11","${myWsId}","${msg}"]`;
             activeWs.send(packet);
             input.value = ''; 
@@ -279,18 +332,48 @@
             }
         };
 
+        // Kullanıcı Listesini Render Etme
+        window.renderUserList = () => {
+            const listEl = document.getElementById('gt-user-list');
+            if (!listEl) return;
+            
+            listEl.innerHTML = '';
+            if (usersList.size === 0) {
+                listEl.innerHTML = '<span style="color:#555;">Kimse yok</span>';
+                return;
+            }
+
+            usersList.forEach((nick, id) => {
+                const badge = document.createElement('span');
+                badge.style.cssText = `
+                    background: #333; 
+                    padding: 2px 6px; 
+                    border-radius: 4px; 
+                    color: #ddd;
+                    border: 1px solid #444;
+                `;
+                // Kendimiz ise vurgula
+                if (id === myWsId) {
+                    badge.style.background = '#0056b3';
+                    badge.style.color = 'white';
+                    badge.textContent = `${nick} (Sen)`;
+                } else {
+                    badge.textContent = nick;
+                }
+                listEl.appendChild(badge);
+            });
+        };
+
         // Chat Log Ekleme Fonksiyonu
         window.addChatLog = (sender, message) => {
             const logEl = document.getElementById('gt-chat-log');
             if (!logEl) return;
 
-            // Mesajı diziye ekle
             chatLog.push({ sender, message, time: new Date().toLocaleTimeString() });
             if (chatLog.length > MAX_LOGS) {
-                chatLog.shift(); // En eskiyi sil
+                chatLog.shift();
             }
 
-            // UI'ı güncelle
             renderChatLog();
         };
 
@@ -298,7 +381,7 @@
             const logEl = document.getElementById('gt-chat-log');
             if (!logEl) return;
             
-            logEl.innerHTML = ''; // Temizle
+            logEl.innerHTML = ''; 
             
             chatLog.forEach(item => {
                 const row = document.createElement('div');
@@ -317,7 +400,6 @@
                 logEl.appendChild(row);
             });
 
-            // Otomatik aşağı kaydır
             logEl.scrollTop = logEl.scrollHeight;
         }
     }
