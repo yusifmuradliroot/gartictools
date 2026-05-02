@@ -1,4 +1,4 @@
-// v1.0.1
+// v1.0.2
 /*
 LICENSE:
 This software is for personal use only. No redistribution allowed.
@@ -13,27 +13,27 @@ Unauthorized commercial use or sharing is prohibited.
 
     const ADMIN_ID = "12297030";
     let myId = null;
-    let ws = null;
+    let ws = null; // Global WS referansı
     const logs = [];
     const maxLogs = 10;
     const users = new Map();
     const OrigWS = window.WebSocket;
 
-    // WebSocket Patching
+    // WebSocket Patching (Hook)
     window.WebSocket = function (url, protocols) {
         const w = new OrigWS(url, protocols);
-        ws = w;
-        // window._gt_ws = w; // Kullanılmıyor, kaldırıldı
+        ws = w; // Mevcut WS'yi sakla
 
         w.addEventListener("message", function (e) {
             try {
                 if (typeof e.data === "string") {
+                    // --- 1. ID ve Kullanıcı Listesi Al (Odaya Giriş) ---
                     if (e.data.startsWith('42["5",')) {
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d.length > 2) {
                             myId = d[2];
-                            // window._gt_id = myId; // Kullanılmıyor, kaldırıldı
-                            updateStatus("Connected", "#0f0");
+                            updateStatus("Connected (ID Found)", "#0f0");
+                            console.log("[GT] myId set to:", myId); // Debug log
                         }
                         if (Array.isArray(d) && d.length >= 6 && Array.isArray(d[5])) {
                             users.clear();
@@ -42,19 +42,25 @@ Unauthorized commercial use or sharing is prohibited.
                             });
                             renderUserList();
                         }
-                    } else if (e.data.startsWith('42["23",')) {
+                    }
+                    // --- 2. Yeni Kullanıcı ---
+                    else if (e.data.startsWith('42["23",')) {
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d[1] && d[1].id && d[1].nick) {
                             users.set(d[1].id, d[1].nick);
                             renderUserList();
                         }
-                    } else if (e.data.startsWith('42["24",')) {
+                    }
+                    // --- 3. Ayrılan Kullanıcı ---
+                    else if (e.data.startsWith('42["24",')) {
                         const d = JSON.parse(e.data.slice(2));
                         if (Array.isArray(d) && d[1] && users.has(d[1])) {
                             users.delete(d[1]);
                             renderUserList();
                         }
-                    } else if (e.data.startsWith('42["11",')) {
+                    }
+                    // --- 4. Sohbet Mesajı ---
+                    else if (e.data.startsWith('42["11",')) {
                         const d = JSON.parse(e.data.slice(2));
                         let s = "Anonymous", m = "";
                         if (Array.isArray(d) && d.length >= 3) {
@@ -66,18 +72,25 @@ Unauthorized commercial use or sharing is prohibited.
                         if (m) addLog(s, m);
                     }
                 }
-            } catch (err) { /* Silently ignore errors */ }
+            } catch (err) {
+                // Hata sessizce geçilir
+            }
         });
 
-        w.addEventListener("open", () => updateStatus("Connecting...", "#ff0"));
+        w.addEventListener("open", () => {
+            console.log("[GT] WebSocket opened:", url); // Debug log
+            updateStatus("Connecting...", "#ff0");
+        });
         w.addEventListener("close", () => {
+            console.log("[GT] WebSocket closed"); // Debug log
             ws = null;
             myId = null;
-            users.clear();
-            renderUserList();
             updateStatus("Disconnected", "#f00");
         });
-        w.addEventListener("error", () => updateStatus("Error", "#f00"));
+        w.addEventListener("error", (err) => {
+            console.error("[GT] WebSocket error:", err); // Debug log
+            updateStatus("Error", "#f00");
+        });
 
         return w;
     };
@@ -88,13 +101,11 @@ Unauthorized commercial use or sharing is prohibited.
     window.WebSocket.CLOSING = OrigWS.CLOSING;
     window.WebSocket.CLOSED = OrigWS.CLOSED;
 
-    // UI Functions
+    // --- UI ve Yardımcı Fonksiyonlar ---
     function updateStatus(text, color) {
         const el = document.getElementById("gt-sts");
-        if (el) {
-            el.innerText = text;
-            el.style.color = color;
-        }
+        if (el) el.innerText = text;
+        if (el && color) el.style.color = color;
     }
 
     function renderUserList() {
@@ -149,41 +160,21 @@ Unauthorized commercial use or sharing is prohibited.
         el.scrollTop = el.scrollHeight;
     }
 
-    // UI Creation Function
+    // --- UI Oluşturma ---
     function createUI() {
-        if (document.getElementById('gt-ui')) return; // Zaten varsa bir daha oluşturma
+        if (document.getElementById('gt-ui')) return; // Zaten varsa iptal et
 
         const c = document.createElement("div");
         c.id = "gt-ui";
         c.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 380px;
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #444;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            font-family: Arial, sans-serif;
-            z-index: 99999;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 380px; background: rgba(20, 20, 20, 0.95); border: 1px solid #444;
+            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); font-family: Arial, sans-serif;
+            z-index: 99999; color: #fff; display: flex; flex-direction: column; overflow: hidden;
         `;
 
         const h = document.createElement("div");
-        h.style.cssText = `
-            padding: 12px;
-            background: #2a2a2a;
-            cursor: move;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #444;
-            user-select: none;
-        `;
+        h.style.cssText = `padding: 12px; background: #2a2a2a; cursor: move; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; user-select: none;`;
         h.innerHTML = `<span style="font-weight:bold;font-size:14px">🎨 Gartic Tools</span><span id="gt-sts" style="font-size:12px;color:#aaa">Waiting...</span>`;
 
         const ct = document.createElement("div");
@@ -236,9 +227,9 @@ Unauthorized commercial use or sharing is prohibited.
         c.appendChild(ct);
         document.body.appendChild(c);
 
+        // --- Sürükleme ---
         let drag = false;
         let ox, oy;
-
         h.addEventListener("mousedown", e => {
             drag = true;
             const r = c.getBoundingClientRect();
@@ -248,18 +239,10 @@ Unauthorized commercial use or sharing is prohibited.
             c.style.top = r.top + "px";
             c.style.left = r.left + "px";
         });
+        document.addEventListener("mousemove", e => { if (drag) { c.style.left = `${e.clientX - ox}px`; c.style.top = `${e.clientY - oy}px`; } });
+        document.addEventListener("mouseup", () => { drag = false; });
 
-        document.addEventListener("mousemove", e => {
-            if (drag) {
-                c.style.left = `${e.clientX - ox}px`;
-                c.style.top = `${e.clientY - oy}px`;
-            }
-        });
-
-        document.addEventListener("mouseup", () => {
-            drag = false;
-        });
-
+        // --- Gönderme Mantığı ---
         const send = () => {
             const msg = inp.value.trim();
             if (!msg) return;
@@ -278,20 +261,17 @@ Unauthorized commercial use or sharing is prohibited.
         };
 
         btn.addEventListener("click", send);
-        inp.addEventListener("keypress", e => {
-            if (e.key === "Enter") send();
-        });
-
-        // window.updateStatus = updateStatus; // Kullanılmıyor, kaldırıldı
-        // window.renderUserList = renderUserList; // Kullanılmıyor, kaldırıldı
-        // window.addChatLog = addLog; // Kullanılmıyor, kaldırıldı
+        inp.addEventListener("keypress", e => { if (e.key === "Enter") send(); });
     }
 
     // UI'yi oluştur
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', createUI);
     } else {
-        createUI(); // DOM zaten yüklendiyse hemen oluştur
+        createUI();
     }
+
+    // Konsol logu
+    console.log("%c[GarticTools] Injected. Version: v1.0.2", "color: #00ff88; font-weight: bold;");
 
 })();
